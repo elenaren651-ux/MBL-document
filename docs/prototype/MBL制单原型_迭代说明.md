@@ -4,7 +4,7 @@
 
 后续持续迭代默认更新这个文件：
 
-`C:\Users\1data\Desktop\MBL制单项目\MBL制单原型_1比1入口.html`
+`/prototype/MBL制单原型_1比1入口.html`
 
 这个文件是 MBL 制单原型的统一预览、导航和 vibe coding 改造入口。
 
@@ -12,7 +12,7 @@
 
 原始 Axure 导出资源位于：
 
-`C:\Users\1data\Desktop\MBL制单项目\mbl-prototype-1to1`
+`/prototype/axure-export`
 
 该目录作为 1:1 还原基线使用。除非明确要求重新导入或修复原始原型资源，后续不要直接修改这个目录里的导出页面和资源。
 
