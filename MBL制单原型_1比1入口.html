@@ -1,0 +1,2965 @@
+<!doctype html>
+<!--
+  文件定义：MBL制单原型 1:1 迭代入口
+
+  后续迭代主文件：
+  - 本文件是 MBL 制单原型的统一预览、导航和 vibe coding 改造入口。
+  - 后续页面导航、交互增强、局部重构、样式调试，默认都更新这个文件。
+
+  原型资源基线：
+  - 原始 Axure 导出资源放在 ./mbl-prototype-1to1/。
+  - iframe 负责 1:1 加载原型页面，避免破坏原始页面还原度。
+  - 除非明确要求重新导入原型，不要直接改 ./mbl-prototype-1to1/ 内的原始导出文件。
+
+  维护约定：
+  - navTree 是页面层级定义，新增/调整页面关系优先改 navTree。
+  - renderList/renderGroup/createPageButton 是导航渲染逻辑。
+  - loadPage 是页面切换入口。
+  - 导航面板默认收起，可拖动、可拉伸，避免遮挡主原型画布。
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MBL制单原型 1:1 还原入口</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --line: #d9e0ea;
+      --text: #202938;
+      --muted: #667085;
+      --primary: #1d64f2;
+      --primary-soft: #eaf1ff;
+      --hover: #f1f5fb;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+      letter-spacing: 0;
+    }
+
+    .shell {
+      position: relative;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      position: fixed;
+      top: 60px;
+      left: 18px;
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      width: 420px;
+      height: calc(100vh - 90px);
+      max-width: calc(100vw - 36px);
+      max-height: calc(100vh - 78px);
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 14px 42px rgba(16, 24, 40, .16);
+      overflow: hidden;
+      user-select: none;
+      resize: both;
+      visibility: hidden;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(-18px);
+      transition: opacity .16s ease, transform .16s ease, visibility .16s ease;
+    }
+
+    .sidebar.open {
+      visibility: visible;
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(0);
+    }
+
+    .brand {
+      padding: 18px 18px 14px;
+      border-bottom: 1px solid var(--line);
+      cursor: move;
+    }
+
+    .brand h1 {
+      margin: 0 0 6px;
+      font-size: 18px;
+      line-height: 1.3;
+      font-weight: 700;
+    }
+
+    .brand p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .search {
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .search input {
+      width: 100%;
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0 10px;
+      color: var(--text);
+      outline: none;
+      font-size: 13px;
+      background: #fff;
+    }
+
+    .search input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(29, 100, 242, .12);
+    }
+
+    .page-list {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 8px;
+    }
+
+    .page-group {
+      margin: 4px 0;
+    }
+
+    .group-title {
+      padding: 9px 10px 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    .page-children {
+      padding-left: 14px;
+      border-left: 1px solid var(--line);
+      margin-left: 10px;
+    }
+
+    .page-button {
+      width: 100%;
+      min-height: 36px;
+      margin: 2px 0;
+      border: 0;
+      border-radius: 6px;
+      padding: 8px 10px;
+      background: transparent;
+      color: var(--text);
+      cursor: pointer;
+      text-align: left;
+      font-size: 13px;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+
+    .page-button.level-1 {
+      font-weight: 700;
+    }
+
+    .page-button.level-2 {
+      font-size: 12px;
+      color: #39465a;
+    }
+
+    .page-button:hover {
+      background: var(--hover);
+    }
+
+    .page-button.active {
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .viewer {
+      position: relative;
+      display: flex;
+      min-width: 0;
+      width: 100vw;
+      height: 100vh;
+      flex-direction: column;
+      background: #fff;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      height: 48px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .nav-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0 12px;
+      color: var(--text);
+      background: #fff;
+      cursor: pointer;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .nav-toggle:hover,
+    .nav-toggle.active {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--primary-soft);
+    }
+
+    .current-title {
+      min-width: 0;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .open-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0 10px;
+      color: var(--text);
+      background: #fff;
+      text-decoration: none;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .open-link:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .submit-record-dialog {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: none;
+    }
+
+    .submit-record-dialog.open {
+      display: block;
+    }
+
+    .record-mask {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, .46);
+    }
+
+    .record-dialog-panel {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: min(880px, calc(100vw - 44px));
+      min-height: 400px;
+      transform: translate(-50%, -50%);
+      background: #fff;
+      color: #111827;
+      box-shadow: 0 22px 66px rgba(15, 23, 42, .24);
+      padding: 22px 24px;
+      font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+    }
+
+    .record-dialog-panel h2 {
+      margin: 0 0 24px;
+      color: #1f2937;
+      font-size: 24px;
+      line-height: 1.2;
+      font-weight: 700;
+    }
+
+    .record-dialog-close {
+      position: absolute;
+      top: 18px;
+      right: 22px;
+      width: 28px;
+      height: 28px;
+      border: 0;
+      background: transparent;
+      color: #9ca3af;
+      cursor: pointer;
+      font-size: 28px;
+      line-height: 24px;
+    }
+
+    .record-timeline {
+      position: relative;
+      padding-left: 0;
+      padding-right: 8px;
+    }
+
+    .timeline-item {
+      position: relative;
+      display: grid;
+      grid-template-columns: 66px 12px minmax(0, 1fr);
+      column-gap: 16px;
+      min-height: 116px;
+    }
+
+    .timeline-item::before {
+      position: absolute;
+      top: 24px;
+      bottom: -18px;
+      left: 30px;
+      width: 1px;
+      background: #e2e8f0;
+      content: "";
+    }
+
+    .timeline-item:last-child::before {
+      bottom: 14px;
+    }
+
+    .timeline-badge {
+      position: relative;
+      z-index: 1;
+      align-self: start;
+      height: 30px;
+      border: 1px solid #e5e7eb;
+      border-radius: 15px;
+      padding: 0 10px;
+      color: #9ca3af;
+      background: #fff;
+      font-size: 15px;
+      line-height: 28px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .timeline-item.latest .timeline-badge {
+      border-color: #9b00ff;
+      color: #fff;
+      background: linear-gradient(180deg, #aa3cff 0%, #8f22e6 100%);
+      font-weight: 700;
+    }
+
+    .timeline-dot {
+      align-self: start;
+      width: 8px;
+      height: 8px;
+      margin-top: 42px;
+      border-radius: 50%;
+    }
+
+    .timeline-dot.success {
+      background: #02c076;
+    }
+
+    .timeline-dot.fail {
+      background: #ff1457;
+    }
+
+    .timeline-content {
+      min-width: 0;
+      padding-bottom: 18px;
+    }
+
+    .timeline-row {
+      display: grid;
+      grid-template-columns: 220px 1fr auto;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      color: #667085;
+      font-size: 16px;
+    }
+
+    .timeline-row strong {
+      color: #111827;
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .record-shot-link {
+      border: 0;
+      background: transparent;
+      color: #8f22e6;
+      cursor: pointer;
+      font-size: 15px;
+      white-space: nowrap;
+    }
+
+    .record-row-actions {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 16px;
+      white-space: nowrap;
+    }
+
+    .record-return-image-link {
+      border: 0;
+      background: transparent;
+      color: #165dff;
+      cursor: pointer;
+      font-size: 15px;
+      white-space: nowrap;
+    }
+
+    .record-preview-link {
+      border: 0;
+      background: transparent;
+      color: #722ed1;
+      cursor: pointer;
+      font-size: 15px;
+      white-space: nowrap;
+    }
+
+    .timeline-status {
+      margin-bottom: 12px;
+      font-size: 16px;
+      line-height: 1.3;
+    }
+
+    .timeline-status.success {
+      color: #111827;
+    }
+
+    .timeline-status.fail,
+    .timeline-reason {
+      color: #ff1457;
+    }
+
+    .timeline-reason {
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .record-dialog-actions {
+      position: absolute;
+      right: 18px;
+      bottom: 20px;
+      display: flex;
+      gap: 12px;
+    }
+
+    .record-cancel,
+    .record-confirm {
+      min-width: 86px;
+      height: 38px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 15px;
+    }
+
+    .record-cancel {
+      border: 1px solid #d0d5dd;
+      color: #111827;
+      background: #fff;
+    }
+
+    .record-confirm {
+      border: 1px solid #9b00ff;
+      color: #fff;
+      background: #8f22e6;
+    }
+
+    .preview-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      display: none;
+    }
+
+    .preview-overlay.open {
+      display: block;
+    }
+
+    .preview-mask {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, .46);
+    }
+
+    .preview-panel {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: min(1080px, calc(100vw - 52px));
+      max-height: calc(100vh - 56px);
+      transform: translate(-50%, -50%);
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 22px 66px rgba(15, 23, 42, .24);
+      font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+    }
+
+    .preview-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 48px;
+      padding: 0 16px;
+      border-bottom: 1px solid #e5e7eb;
+      color: #111827;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .preview-close {
+      width: 28px;
+      height: 28px;
+      border: 0;
+      background: transparent;
+      color: #9ca3af;
+      cursor: pointer;
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .snapshot-preview-body {
+      max-height: calc(100vh - 152px);
+      overflow: auto;
+      padding: 0 18px 18px;
+      background: #fff;
+      color: #111827;
+      font-size: 12px;
+    }
+
+    .snapshot-section {
+      border-top: 1px solid #d9dce3;
+      padding: 12px 0;
+    }
+
+    .snapshot-section:first-child {
+      border-top: 0;
+    }
+
+    .snapshot-section h4 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .snapshot-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+
+    .snapshot-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    .snapshot-kv {
+      line-height: 1.5;
+    }
+
+    .snapshot-kv span {
+      color: #d9001b;
+    }
+
+    .snapshot-kv strong {
+      font-weight: 400;
+    }
+
+    .snapshot-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .snapshot-table th,
+    .snapshot-table td {
+      border: 1px solid #e5e7eb;
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .snapshot-table th {
+      color: #667085;
+      background: #f6f7fb;
+      font-weight: 500;
+    }
+
+    .snapshot-table .missing {
+      color: #f59e0b;
+    }
+
+    .preview-foot {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      padding: 12px 16px;
+      border-top: 1px solid #e5e7eb;
+      background: #fff;
+    }
+
+    .diff-preview-body {
+      max-height: calc(100vh - 152px);
+      overflow: auto;
+      background: #fff;
+      padding: 12px 16px;
+    }
+
+    .diff-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 16px;
+      color: #111827;
+    }
+
+    .diff-table th,
+    .diff-table td {
+      border-bottom: 1px solid #eef0f4;
+      padding: 12px 18px;
+      text-align: left;
+      font-weight: 400;
+    }
+
+    .diff-table th {
+      color: #667085;
+      background: #fafafa;
+    }
+
+    .diff-table .reason {
+      color: #111827;
+      font-weight: 700;
+    }
+
+    .prototype-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 32px;
+      border: 1px solid #165dff;
+      border-radius: 6px;
+      padding: 0 12px;
+      color: #fff;
+      background: #165dff;
+      cursor: pointer;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .prototype-button:hover {
+      background: #0f49c8;
+    }
+
+    .submit-record-stage {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: none;
+      background: rgba(15, 23, 42, .5);
+    }
+
+    .submit-record-stage.open {
+      display: block;
+    }
+
+    .hi-fi-shell {
+      position: absolute;
+      inset: 36px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 560px;
+      min-width: 980px;
+      overflow: hidden;
+      border-radius: 10px;
+      background: #f4f6fb;
+      box-shadow: 0 24px 80px rgba(15, 23, 42, .28);
+    }
+
+    .hi-fi-page {
+      overflow: auto;
+      padding: 24px;
+    }
+
+    .hi-fi-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .hi-fi-title h2 {
+      margin: 0 0 6px;
+      color: #111827;
+      font-size: 20px;
+      line-height: 1.35;
+    }
+
+    .hi-fi-title p {
+      margin: 0;
+      color: #667085;
+      font-size: 13px;
+    }
+
+    .stage-close {
+      width: 34px;
+      height: 34px;
+      border: 1px solid #d0d5dd;
+      border-radius: 6px;
+      background: #fff;
+      color: #344054;
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .mock-card {
+      border: 1px solid #e4e7ec;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 4px 14px rgba(16, 24, 40, .06);
+    }
+
+    .mock-section {
+      padding: 18px 20px;
+      border-bottom: 1px solid #edf0f5;
+    }
+
+    .mock-section:last-child {
+      border-bottom: 0;
+    }
+
+    .detail-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .detail-head h3 {
+      margin: 0;
+      color: #101828;
+      font-size: 16px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      height: 24px;
+      border-radius: 999px;
+      padding: 0 10px;
+      color: #027a48;
+      background: #ecfdf3;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .mock-fields {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .field-item span {
+      display: block;
+      margin-bottom: 5px;
+      color: #667085;
+      font-size: 12px;
+    }
+
+    .field-item strong {
+      color: #101828;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .tabs-row {
+      display: flex;
+      gap: 22px;
+      border-bottom: 1px solid #e4e7ec;
+      padding: 0 20px;
+      background: #fff;
+    }
+
+    .tab-item {
+      position: relative;
+      padding: 14px 0;
+      color: #667085;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .tab-item.active {
+      color: #165dff;
+    }
+
+    .tab-item.active::after {
+      position: absolute;
+      right: 0;
+      bottom: -1px;
+      left: 0;
+      height: 2px;
+      background: #165dff;
+      content: "";
+    }
+
+    .result-panel {
+      margin-top: 18px;
+    }
+
+    .result-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 20px 0;
+    }
+
+    .result-toolbar h3 {
+      margin: 0;
+      color: #101828;
+      font-size: 15px;
+    }
+
+    .record-entry {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 32px;
+      border: 1px solid #165dff;
+      border-radius: 6px;
+      padding: 0 12px;
+      color: #165dff;
+      background: #fff;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .result-preview {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 16px;
+      padding: 18px 20px 20px;
+    }
+
+    .doc-preview {
+      min-height: 360px;
+      border: 1px solid #d0d5dd;
+      border-radius: 6px;
+      padding: 20px;
+      background: linear-gradient(#fff, #fbfcff);
+    }
+
+    .doc-line {
+      height: 10px;
+      margin-bottom: 12px;
+      border-radius: 2px;
+      background: #d9e2f2;
+    }
+
+    .doc-line.short {
+      width: 46%;
+    }
+
+    .doc-line.medium {
+      width: 72%;
+    }
+
+    .doc-table {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 22px;
+    }
+
+    .doc-cell {
+      height: 32px;
+      border: 1px solid #e4e7ec;
+      border-radius: 4px;
+      background: #f8fafc;
+    }
+
+    .side-info {
+      display: grid;
+      gap: 12px;
+    }
+
+    .info-block {
+      border: 1px solid #e4e7ec;
+      border-radius: 6px;
+      padding: 14px;
+      background: #fff;
+    }
+
+    .info-block h4 {
+      margin: 0 0 10px;
+      color: #101828;
+      font-size: 13px;
+    }
+
+    .submit-modal {
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid #d0d5dd;
+      background: #fff;
+    }
+
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+      padding: 0 20px;
+      border-bottom: 1px solid #e4e7ec;
+    }
+
+    .modal-head h3 {
+      margin: 0;
+      color: #101828;
+      font-size: 16px;
+    }
+
+    .modal-close {
+      width: 28px;
+      height: 28px;
+      border: 0;
+      background: transparent;
+      color: #667085;
+      cursor: pointer;
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .record-list {
+      flex: 1;
+      overflow: auto;
+      padding: 18px 20px;
+    }
+
+    .record-card {
+      border: 1px solid #e4e7ec;
+      border-radius: 8px;
+      padding: 14px;
+      background: #fff;
+    }
+
+    .record-card + .record-card {
+      margin-top: 12px;
+    }
+
+    .record-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .record-index {
+      color: #101828;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .record-status {
+      display: inline-flex;
+      align-items: center;
+      height: 22px;
+      border-radius: 999px;
+      padding: 0 8px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .record-status.success {
+      color: #027a48;
+      background: #ecfdf3;
+    }
+
+    .record-status.fail {
+      color: #b42318;
+      background: #fef3f2;
+    }
+
+    .record-meta {
+      display: grid;
+      grid-template-columns: 76px minmax(0, 1fr);
+      gap: 8px 10px;
+      margin-bottom: 12px;
+      color: #475467;
+      font-size: 13px;
+    }
+
+    .record-meta span:nth-child(odd) {
+      color: #98a2b3;
+    }
+
+    .reason-box {
+      margin-bottom: 12px;
+      border-radius: 6px;
+      padding: 10px;
+      color: #b42318;
+      background: #fff5f3;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .snapshot-link {
+      height: 30px;
+      border: 1px solid #d0d5dd;
+      border-radius: 6px;
+      padding: 0 10px;
+      color: #165dff;
+      background: #fff;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .modal-foot {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 14px 20px;
+      border-top: 1px solid #e4e7ec;
+      background: #fff;
+    }
+
+    .ghost-btn,
+    .primary-btn {
+      height: 32px;
+      border-radius: 6px;
+      padding: 0 14px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .ghost-btn {
+      border: 1px solid #d0d5dd;
+      color: #344054;
+      background: #fff;
+    }
+
+    .primary-btn {
+      border: 1px solid #165dff;
+      color: #fff;
+      background: #165dff;
+    }
+
+    .snapshot-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 23, 42, .58);
+    }
+
+    .snapshot-layer.open {
+      display: flex;
+    }
+
+    .snapshot-panel {
+      width: min(960px, calc(100vw - 96px));
+      max-height: calc(100vh - 120px);
+      overflow: hidden;
+      border-radius: 10px;
+      background: #fff;
+      box-shadow: 0 24px 80px rgba(15, 23, 42, .32);
+    }
+
+    .snapshot-body {
+      max-height: calc(100vh - 220px);
+      overflow: auto;
+      padding: 20px;
+      background: #f8fafc;
+    }
+
+    .snapshot-screen {
+      border: 1px solid #d0d5dd;
+      border-radius: 8px;
+      padding: 18px;
+      background: #fff;
+    }
+
+    .return-image-preview-body {
+      max-height: calc(100vh - 152px);
+      overflow: auto;
+      padding: 22px;
+      background: #f2f4f7;
+    }
+
+    .return-image-frame {
+      width: 720px;
+      max-width: 100%;
+      margin: 0 auto;
+      border: 1px solid #d7dce5;
+      border-radius: 2px;
+      background: #fff;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, .14);
+      overflow: hidden;
+    }
+
+    .return-mail-top {
+      position: relative;
+      padding: 16px 14px 10px;
+      background: #fff;
+      border-bottom: 1px solid #d8dde7;
+    }
+
+    .return-mail-title {
+      margin: 0 0 10px;
+      color: #000;
+      font-size: 22px;
+      line-height: 1.25;
+      font-weight: 700;
+    }
+
+    .return-mail-title span {
+      color: #7b8794;
+      font-weight: 400;
+    }
+
+    .return-mail-avatar {
+      position: absolute;
+      top: 18px;
+      right: 14px;
+      width: 52px;
+      height: 52px;
+      border: 1px solid #e4e7ec;
+      background:
+        radial-gradient(circle at 50% 35%, #d7dbe2 0 12px, transparent 13px),
+        radial-gradient(circle at 50% 82%, #d7dbe2 0 24px, transparent 25px),
+        #f5f6f8;
+    }
+
+    .return-mail-meta {
+      display: grid;
+      grid-template-columns: 52px 1fr;
+      gap: 4px 0;
+      padding-right: 70px;
+      color: #667085;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .return-mail-meta strong {
+      color: #111827;
+      font-weight: 400;
+    }
+
+    .return-mail-meta .green {
+      color: #168000;
+      font-weight: 700;
+    }
+
+    .return-mail-tools {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 8px;
+      color: #2563eb;
+      font-size: 13px;
+    }
+
+    .return-mail-body {
+      padding: 56px 14px 18px;
+      color: #000;
+      font-size: 16px;
+      line-height: 1.38;
+      background: #fff;
+    }
+
+    .return-mail-body p {
+      margin: 0 0 22px;
+    }
+
+    .return-mail-body .return-mail-bold {
+      margin-top: -2px;
+      font-size: 17px;
+      line-height: 1.28;
+      font-weight: 700;
+      letter-spacing: .2px;
+    }
+
+    .snapshot-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .snapshot-field {
+      border: 1px solid #e4e7ec;
+      border-radius: 6px;
+      padding: 10px;
+      background: #fcfcfd;
+    }
+
+    .snapshot-field span {
+      display: block;
+      margin-bottom: 6px;
+      color: #98a2b3;
+      font-size: 12px;
+    }
+
+    .snapshot-field strong {
+      color: #101828;
+      font-size: 13px;
+    }
+
+    .contact-mail-panel {
+      width: min(760px, calc(100vw - 44px));
+      max-height: calc(100vh - 56px);
+      overflow: auto;
+      padding: 20px 22px;
+    }
+
+    .contact-form {
+      display: grid;
+      grid-template-columns: 88px 1fr;
+      gap: 14px 12px;
+      color: #111827;
+      font-size: 14px;
+    }
+
+    .contact-form label {
+      align-self: center;
+      text-align: right;
+      color: #344054;
+    }
+
+    .contact-input,
+    .contact-select,
+    .contact-editor {
+      min-height: 34px;
+      border: 1px solid #d0d5dd;
+      border-radius: 4px;
+      padding: 7px 10px;
+      background: #fff;
+      color: #111827;
+    }
+
+    .contact-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .contact-tag {
+      display: inline-flex;
+      align-items: center;
+      height: 26px;
+      border-radius: 4px;
+      padding: 0 8px;
+      background: #f2f4f7;
+      color: #344054;
+      font-size: 13px;
+    }
+
+    .contact-editor {
+      min-height: 150px;
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+
+    iframe {
+      width: 100%;
+      height: calc(100vh - 48px);
+      border: 0;
+      background: #fff;
+    }
+
+    @media (max-width: 900px) {
+      .sidebar {
+        top: 58px;
+        left: 10px;
+        width: min(380px, calc(100vw - 20px));
+        height: min(460px, calc(100vh - 78px));
+        max-width: calc(100vw - 20px);
+        max-height: calc(100vh - 78px);
+      }
+
+      .toolbar {
+        padding-left: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>MBL制单原型</h1>
+        <p>1:1 加载原始 Axure 页面，资源位于 mbl-prototype-1to1。</p>
+      </div>
+      <div class="search">
+        <input id="searchInput" type="search" placeholder="搜索页面名称">
+      </div>
+      <nav id="pageList" class="page-list" aria-label="原型页面列表"></nav>
+    </aside>
+
+    <section class="viewer">
+      <div class="toolbar">
+        <button id="navToggle" class="nav-toggle" type="button">页面</button>
+        <div id="currentTitle" class="current-title"></div>
+        <a id="openLink" class="open-link" href="#" target="_blank" rel="noreferrer">新窗口打开</a>
+      </div>
+      <iframe id="prototypeFrame" title="MBL制单原型页面"></iframe>
+    </section>
+  </main>
+
+  <section id="submitRecordDialog" class="submit-record-dialog" aria-label="提交记录弹框">
+    <div class="record-mask"></div>
+    <div class="record-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="submitRecordTitle">
+      <button id="submitRecordClose" class="record-dialog-close" type="button" aria-label="关闭">×</button>
+      <h2 id="submitRecordTitle">提交记录</h2>
+
+      <div class="record-timeline">
+        <article class="timeline-item latest">
+          <div class="timeline-badge">第2次</div>
+          <div class="timeline-dot success"></div>
+          <div class="timeline-content">
+            <div class="timeline-row">
+              <strong>2025-11-20 18:49:30</strong>
+              <span>admin</span>
+              <span class="record-row-actions">
+                <button class="record-preview-link" type="button" data-preview-id="PV-20251120-003">关联预览件：PV-20251120-003</button>
+                <button class="record-shot-link" type="button">提交截图</button>
+                <button class="record-return-image-link" type="button">异常回执</button>
+              </span>
+            </div>
+            <div class="timeline-status success">录入 成功</div>
+          </div>
+        </article>
+
+        <article class="timeline-item">
+          <div class="timeline-badge">第1次</div>
+          <div class="timeline-dot fail"></div>
+          <div class="timeline-content">
+            <div class="timeline-row">
+              <strong>2025-11-12 17:08:05</strong>
+              <span>admin</span>
+              <span class="record-row-actions">
+                <button class="record-preview-link" type="button" data-preview-id="PV-20251118-002">关联预览件：PV-20251118-002</button>
+                <button class="record-shot-link" type="button">提交截图</button>
+              </span>
+            </div>
+            <div class="timeline-status fail">录入 失败</div>
+            <div class="timeline-reason">提单补料过程中检测到箱号无法完全匹配：SI中的CSLU609125-3</div>
+          </div>
+        </article>
+      </div>
+
+      <div class="record-dialog-actions">
+        <button class="record-cancel" type="button" data-submit-record-close>取消</button>
+        <button class="record-confirm" type="button" data-submit-record-close>确定</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="submitSnapshotOverlay" class="preview-overlay" aria-label="提交截图预览">
+    <div class="preview-mask" data-preview-close></div>
+    <div class="preview-panel">
+      <div class="preview-head">
+        <span>提交截图</span>
+        <button class="preview-close" type="button" data-preview-close aria-label="关闭">×</button>
+      </div>
+      <div class="snapshot-preview-body">
+        <div class="snapshot-section">
+          <h4>确认提单信息</h4>
+          <div class="snapshot-grid-3">
+            <div class="snapshot-kv"><span>*</span> 船司：<strong>COSCO</strong></div>
+            <div class="snapshot-kv"><span>*</span> 账号：<strong>BOOKING ACCOUNT</strong></div>
+            <div class="snapshot-kv"><span>*</span> 提单号：<strong>SHCS5M00800</strong></div>
+          </div>
+        </div>
+
+        <div class="snapshot-section">
+          <h4>提交信息</h4>
+          <div class="snapshot-grid-3">
+            <div class="snapshot-kv"><span>*</span> 发货人：<br>TIAONI FASTRICHON INTERNATIONAL TRADE CO. LTD.<br>1F BUILDING B WEALTH LAND</div>
+            <div class="snapshot-kv"><span>*</span> 收货人：<br>PARTER TRADING IMPORTADORA E EXPORTADORA LTDA<br>ADDRESS RUA EVARISTO DA VEIGA, NO 134</div>
+            <div class="snapshot-kv"><span>*</span> 通知人：<br>PARTER TRADING IMPORTADORA E EXPORTADORA LTDA<br>ADDRESS RUA EVARISTO DA VEIGA, NO 134</div>
+          </div>
+        </div>
+
+        <div class="snapshot-section">
+          <h4>文件信息 / 付款信息</h4>
+          <div class="snapshot-grid-2">
+            <div class="snapshot-kv"><span>*</span> 收货地：SHANGHAI,CN<br><span>*</span> 装运港：SHANGHAI,CN<br><span>*</span> 卸货港：NEWYORK,US<br><span>*</span> 目的地：NEWYORK,US</div>
+            <div class="snapshot-kv"><span>*</span> 付款方式：预付<br>单证类型：SWB<br>单证份数：3</div>
+          </div>
+        </div>
+
+        <div class="snapshot-section">
+          <h4>箱信息</h4>
+          <table class="snapshot-table">
+            <thead><tr><th>#</th><th>House B/L NO.</th><th>SCAC</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>EGSU8017707</td><td>732599</td></tr>
+              <tr><td>2</td><td>EGSU8017707</td><td>732599</td></tr>
+              <tr><td>3</td><td>EGSU8017707</td><td>732599</td></tr>
+              <tr><td>4</td><td>EGSU8017707</td><td>732599</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="snapshot-section">
+          <h4>货物信息</h4>
+          <table class="snapshot-table">
+            <thead><tr><th>集装箱号</th><th>封号</th><th>HS CODE</th><th>货物描述</th><th>件数</th><th>包装类型</th><th>毛重(KGS)</th><th>体积(CBM)</th></tr></thead>
+            <tbody>
+              <tr><td>EGSU8017707-5</td><td>CRCCRCR</td><td>85182190</td><td>SPEAKER</td><td>1</td><td>BAGS</td><td>11.000</td><td>9999.000</td></tr>
+              <tr><td>EGSU8017707</td><td class="missing">未填写</td><td>732599</td><td>OUTDOOR DRAINS</td><td>1</td><td>BAGS</td><td>11.000</td><td>9999.000</td></tr>
+              <tr><td>EGSU8017707</td><td class="missing">未填写</td><td>732599</td><td>SPEAKER</td><td>1</td><td>BAGS</td><td>11.000</td><td>9999.000</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="preview-foot">
+        <button class="record-cancel" type="button" data-preview-close>返回</button>
+        <button class="record-confirm" type="button" data-preview-close>确认无误，提交船司</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="returnImageOverlay" class="preview-overlay" aria-label="异常回执预览">
+    <div class="preview-mask" data-return-image-close></div>
+    <div class="preview-panel">
+      <div class="preview-head">
+        <span>异常回执</span>
+        <button class="preview-close" type="button" data-return-image-close aria-label="关闭">×</button>
+      </div>
+      <div class="return-image-preview-body">
+        <div class="return-image-frame">
+          <div class="return-mail-top">
+            <h3 class="return-mail-title">action required - Shipment # 721033296 <span>☆ □</span></h3>
+            <div class="return-mail-avatar"></div>
+            <div class="return-mail-meta">
+              <span>发件人：</span><strong><span class="green">Do Not Reply - Maersk</span> &lt;No_Reply@maersk.com&gt;</strong>
+              <span>时间：</span><strong>2025年9月22日(星期一) 下午4:56</strong>
+              <span>收件人：</span><strong>yaoyujun &lt;yaoyujun@eboxline.com&gt;</strong>
+            </div>
+            <div class="return-mail-tools">翻译全文 | 🔍 ▣ 🖨⌄</div>
+          </div>
+          <div class="return-mail-body">
+            <p>尊敬的客户：</p>
+            <p>感谢您提交的提单样本/补料</p>
+            <p>请注意，由于以下原因，我们无法处理您的提单721033296样本/补料</p>
+            <p class="return-mail-bold">
+              缺少海关/或国家强制性要求的收货人地址的详细信息：<br>
+              Singapore - Unique Entity Number (UEN)<br>
+              Additional Information<br>
+              UEN 201633992R could not be validated, pls kindly check and provide us<br>
+              correct tax or tax copy for validation, tks
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="preview-foot">
+        <button class="record-cancel" type="button" data-return-image-close>返回</button>
+        <button class="record-confirm" type="button" data-return-image-close>确定</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="diffContentOverlay" class="preview-overlay" aria-label="查看不一致内容">
+    <div class="preview-mask" data-diff-close></div>
+    <div class="preview-panel">
+      <div class="preview-head">
+        <span>查看不一致内容</span>
+        <button class="preview-close" type="button" data-diff-close aria-label="关闭">×</button>
+      </div>
+      <div class="diff-preview-body">
+        <table class="diff-table">
+          <thead>
+            <tr><th>字段</th><th>系统值</th><th>三方值</th><th>原因</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>总件数</td><td>6</td><td>-</td><td class="reason">值不匹配</td></tr>
+            <tr><td>总体积</td><td>266.5</td><td>263.5</td><td class="reason">值不匹配</td></tr>
+            <tr><td>总重量</td><td>39288.01</td><td>39286</td><td class="reason">值不匹配</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="preview-foot">
+        <button class="record-confirm" type="button" data-diff-close>确定</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="contactCustomerOverlay" class="preview-overlay" aria-label="联系客户">
+    <div class="preview-mask" data-contact-close></div>
+    <div class="preview-panel contact-mail-panel">
+      <div class="preview-head">
+        <span>联系客户</span>
+        <button class="preview-close" type="button" data-contact-close aria-label="关闭">×</button>
+      </div>
+      <div class="contact-form">
+        <label>选择回复邮件：</label>
+        <div class="contact-select">MBL制单 - MSK - 268920676</div>
+        <label>发件人：</label>
+        <div class="contact-input">公共账号：speedy_ai_service@oneaix.com</div>
+        <label>收件人：</label>
+        <div class="contact-input contact-tags"><span class="contact-tag">doc06@speedy-log.com</span><span class="contact-tag">SPEEDY_AI_SERVICE@oneaix.com</span></div>
+        <label>抄送人：</label>
+        <div class="contact-input contact-tags"><span class="contact-tag">doc06@speedy-log.com</span></div>
+        <label>回复模板：</label>
+        <div class="contact-select">预览件异常确认</div>
+        <label>邮件主题：</label>
+        <div class="contact-input">【预览件确认】 - MBL制单 - MSK - 268920676</div>
+        <label>附件：</label>
+        <div class="contact-input"><span id="contactPreviewAttachment">PV-20251120-003.pdf</span>　单个文件不超过 50MB</div>
+        <label>回复内容：</label>
+        <div class="contact-editor">Dear Customer,
+
+附件为该提单当前预览件，请确认附件内容是否有误。如内容无误，请直接回复“确认无误”；如有修改，请在回复中注明具体修改内容，我们将同步更新并再次与您确认。谢谢。</div>
+      </div>
+      <div class="preview-foot">
+        <button class="record-cancel" type="button" data-contact-close>取消</button>
+        <button class="record-confirm" type="button" data-contact-close>确定</button>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    const basePath = "mbl-prototype-1to1/";
+    const navTree = [
+      {
+        title: "MBL制单",
+        pages: [
+          { file: "mbl制单列表__最新版本）__0316版本）（0330）（v0410_.html", label: "MBL制单列表" },
+          {
+            title: "详情页",
+            pages: [
+              { file: "详情-待处理（页面禁止编辑）_0330_.html", label: "待处理" },
+              { file: "临时-待处理-回执邮件接收方预览.html", label: "待处理-回执邮件接收方预览" },
+              { file: "详情-待提交船司.html", label: "待提交船司（字段可信审单）" },
+              { file: "临时-回执邮件接收方样式预览.html", label: "回执邮件接收方样式预览" },
+              { file: "详情-生成预览件中（页面禁止编辑）.html", label: "生成预览件中" },
+              { file: "详情-预览件提交异常.html", label: "预览件提交异常" },
+              { file: "详情-预览件比对异常（0410_.html", label: "预览件比对异常" },
+              { file: "详情-提交船公司中（页面禁止编辑）.html", label: "提交船公司中" },
+              { file: "详情-提交船公司异常_0410_.html", label: "提交船公司异常" },
+              { file: "详情--已提交船公司（页面禁止编辑）.html", label: "已提交船公司" },
+              { file: "详情--草稿件已出（页面禁止编辑）（v03_16）.html", label: "草稿件已出" },
+              { file: "详情--草稿异常（页面禁止编辑）（v03_23）.html", label: "草稿异常" },
+              { file: "详情--vc已出（页面禁止编辑）_v0330_.html", label: "VC已出" },
+              { file: "详情--vc异常（页面禁止编辑）_v0410_.html", label: "VC异常" },
+              { file: "详情—已关闭（页面禁止编辑）.html", label: "已关闭" },
+              { file: "详情（一期此页面不放开）.html", label: "详情（一期不放开）" }
+            ]
+          },
+          {
+            title: "船司补料详情",
+            pages: [
+              { file: "cosco详情-待生成预览件_提单补料-客户补料）（0316）.html", label: "COSCO 待生成预览件" },
+              { file: "msk详情-待生成预览件_提单补料-客户补料）_0316）（0318）（0327）（0330）_04.html", label: "MSK 待生成预览件" }
+            ]
+          }
+        ]
+      },
+      {
+        title: "MBL制单中间表",
+        pages: [
+          { file: "mbl制单中间表_列表__0330版本）.html", label: "中间表列表" }
+        ]
+      },
+      {
+        title: "客户补料",
+        pages: [
+          { file: "客户补料页面-补料提交页__更新版本）.html", label: "客户补料提交页" },
+          { file: "客户已提交补料信息_页面禁止编辑）.html", label: "客户已提交补料信息" }
+        ]
+      },
+      {
+        title: "账号与规则配置",
+        pages: [
+          { file: "客户账号管理（0330版本）.html", label: "客户账号管理" },
+          { file: "客户规则设置.html", label: "客户规则设置" },
+          { file: "船司账号设置（0316版本）.html", label: "船司账号设置" },
+          { file: "cosco_-_船司覆盖（0316版本）.html", label: "COSCO 船司覆盖" },
+          { file: "船司覆盖总表说明（0316版本）.html", label: "船司覆盖总表说明" }
+        ]
+      },
+      {
+        title: "Agent 与解析配置",
+        pages: [
+          { file: "mbl意图判断.html", label: "MBL意图判断" },
+          { file: "内容解析配置.html", label: "内容解析配置" },
+          { file: "箱子信息agent_工具管理（0318版本）.html", label: "箱子信息 Agent 工具管理" },
+          { file: "agent___0318___.html", label: "Agent" }
+        ]
+      },
+      {
+        title: "数据与说明文档",
+        pages: [
+          { file: "数据看板（v1_0）_0323_.html", label: "数据看板" },
+          { file: "数据清洗说明_-船司提单号（0410）.html", label: "数据清洗说明 - 船司提单号" },
+          { file: "数据清洗说明_-客户cosco船司规则（0416）.html", label: "数据清洗说明 - 客户 COSCO 船司规则" },
+          { file: "数据清洗说明_-客户msk船司规则（0410）.html", label: "数据清洗说明 - 客户 MSK 船司规则" },
+          { file: "埋点需求说明（v1_0）.html", label: "埋点需求说明" },
+          { file: "原型更新记录.html", label: "原型更新记录" },
+          { file: "_____v0330__v0410_.html", label: "版本补充说明" }
+        ]
+      },
+      {
+        title: "添加流程",
+        pages: [
+          { file: "添加.html", label: "添加" },
+          { file: "添加_1.html", label: "添加 1" },
+          { file: "添加_2.html", label: "添加 2" }
+        ]
+      }
+    ];
+
+    function flattenPages(node) {
+      return (node.pages || []).flatMap((item) => item.file ? [item] : flattenPages(item));
+    }
+
+    const pages = navTree.flatMap(flattenPages);
+
+    const pageList = document.getElementById("pageList");
+    const frame = document.getElementById("prototypeFrame");
+    const sidebar = document.querySelector(".sidebar");
+    const dragHandle = document.querySelector(".brand");
+    const navToggle = document.getElementById("navToggle");
+    const submitRecordDialog = document.getElementById("submitRecordDialog");
+    const submitRecordClose = document.getElementById("submitRecordClose");
+    const submitSnapshotOverlay = document.getElementById("submitSnapshotOverlay");
+    const returnImageOverlay = document.getElementById("returnImageOverlay");
+    const diffContentOverlay = document.getElementById("diffContentOverlay");
+    const contactCustomerOverlay = document.getElementById("contactCustomerOverlay");
+    const contactPreviewAttachment = document.getElementById("contactPreviewAttachment");
+    const currentTitle = document.getElementById("currentTitle");
+    const openLink = document.getElementById("openLink");
+    const searchInput = document.getElementById("searchInput");
+    let activePage = pages[0].file;
+    let dragState = null;
+
+    function getLabel(fileName) {
+      const page = pages.find((item) => item.file === fileName);
+      return page ? page.label : fileName.replace(/\.html$/i, "");
+    }
+
+    function renderList(keyword = "") {
+      const normalized = keyword.trim().toLowerCase();
+      pageList.innerHTML = "";
+      navTree.forEach((group) => {
+        const groupNode = renderGroup(group, normalized, 1);
+        if (groupNode) {
+          pageList.appendChild(groupNode);
+        }
+      });
+    }
+
+    function renderGroup(group, normalized, level) {
+      const groupElement = document.createElement("section");
+      groupElement.className = "page-group";
+
+      const title = document.createElement("div");
+      title.className = "group-title";
+      title.textContent = group.title;
+
+      const children = document.createElement("div");
+      children.className = level > 1 ? "page-children" : "";
+
+      let hasVisibleChild = false;
+      (group.pages || []).forEach((item) => {
+        if (item.file) {
+          const searchText = (item.label + item.file).toLowerCase();
+          if (normalized && !searchText.includes(normalized)) {
+            return;
+          }
+
+          children.appendChild(createPageButton(item, level));
+          hasVisibleChild = true;
+          return;
+        }
+
+        const childGroup = renderGroup(item, normalized, level + 1);
+        if (childGroup) {
+          children.appendChild(childGroup);
+          hasVisibleChild = true;
+        }
+      });
+
+      if (!hasVisibleChild && normalized && !group.title.toLowerCase().includes(normalized)) {
+        return null;
+      }
+
+      groupElement.appendChild(title);
+      groupElement.appendChild(children);
+      return groupElement;
+    }
+
+    function createPageButton(page, level) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "page-button level-" + level + (page.file === activePage ? " active" : "");
+      button.textContent = page.label;
+      button.title = page.file;
+      button.addEventListener("click", () => loadPage(page.file));
+      return button;
+    }
+
+    function loadPage(page) {
+      activePage = page;
+      const url = basePath + page;
+      currentTitle.textContent = getLabel(page);
+      frame.src = url;
+      openLink.href = url;
+      renderList(searchInput.value);
+      window.location.hash = encodeURIComponent(page);
+      closeNav();
+      scheduleSubmitRecordInjection();
+    }
+
+    function injectSubmitRecordEntry() {
+      let doc;
+      try {
+        doc = frame.contentDocument || frame.contentWindow.document;
+      } catch (error) {
+        return;
+      }
+
+      if (!doc) {
+        return;
+      }
+
+      if (!doc.getElementById("codexSubmitRecordStyle")) {
+        const style = doc.createElement("style");
+        style.id = "codexSubmitRecordStyle";
+        style.textContent = `
+        .codex-force-hide-diff-panel {
+          display: none !important;
+          visibility: hidden !important;
+        }
+        [data-label="二次弹框"]:has([data-label="查看不一致字段"]) {
+          display: none !important;
+          visibility: hidden !important;
+        }
+        .codex-submit-record-entry {
+          position: absolute;
+          top: 20px;
+          right: 18px;
+          z-index: 999999;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          width: 124px;
+          height: 36px;
+          border: 1px solid #d9d0ff;
+          border-radius: 2px;
+          background: rgba(255, 255, 255, .92);
+          color: #7a18d6;
+          cursor: pointer;
+          font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+          font-size: 14px;
+          line-height: 1;
+          white-space: nowrap;
+          box-shadow: 0 4px 12px rgba(122, 24, 214, .08);
+          transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+        }
+        .codex-submit-record-entry:hover {
+          border-color: #b98cff;
+          background: #fbf8ff;
+          box-shadow: 0 6px 16px rgba(122, 24, 214, .14);
+        }
+        .codex-submit-record-entry strong {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 19px;
+          height: 19px;
+          flex: 0 0 19px;
+          border-radius: 50%;
+          color: #fff;
+          background: #8f22e6;
+          font-size: 12px;
+          font-weight: 700;
+        }
+        .codex-list-filter-panel {
+          position: absolute;
+          left: 0;
+          top: 46px;
+          z-index: 999998;
+          width: 100%;
+          min-height: 178px;
+          border: 0;
+          background: #fff;
+          box-shadow: none;
+          font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+          color: #1f2937;
+        }
+        body.codex-list-filter-mounted {
+          padding-top: 130px;
+        }
+        .codex-list-filter-head {
+          display: none;
+        }
+        .codex-list-filter-head strong {
+          font-size: 14px;
+        }
+        .codex-list-filter-history {
+          color: #667085;
+          font-size: 12px;
+        }
+        .codex-list-filter-body {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 14px 22px;
+          max-width: 1120px;
+          padding: 18px 14px 16px;
+        }
+        .codex-filter-field {
+          position: relative;
+          min-width: 0;
+        }
+        .codex-filter-label {
+          display: block;
+          margin-bottom: 4px;
+          color: #475467;
+          font-size: 12px;
+        }
+        .codex-filter-control {
+          display: flex;
+          align-items: center;
+          min-height: 34px;
+          border: 1px solid #d0d5dd;
+          border-radius: 4px;
+          background: #fff;
+          padding: 0 10px;
+          cursor: pointer;
+          font-size: 13px;
+        }
+        .codex-filter-control input {
+          width: 100%;
+          border: 0;
+          outline: 0;
+          font: inherit;
+          color: #1f2937;
+        }
+        .codex-filter-placeholder {
+          flex: 1;
+          overflow: hidden;
+          color: #98a2b3;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
+        .codex-filter-count {
+          display: none;
+          align-items: center;
+          justify-content: center;
+          min-width: 18px;
+          height: 18px;
+          border-radius: 9px;
+          background: #8f22e6;
+          color: #fff;
+          font-size: 11px;
+          font-weight: 700;
+        }
+        .codex-filter-field.has-value .codex-filter-placeholder {
+          color: #1f2937;
+        }
+        .codex-filter-field.has-value .codex-filter-count {
+          display: inline-flex;
+        }
+        .codex-multi-menu {
+          position: absolute;
+          top: 60px;
+          left: 0;
+          z-index: 1000000;
+          display: none;
+          width: 100%;
+          min-width: 236px;
+          border: 1px solid #d0d5dd;
+          border-radius: 4px;
+          background: #fff;
+          box-shadow: 0 14px 30px rgba(16, 24, 40, .16);
+          overflow: hidden;
+        }
+        .codex-filter-field.open .codex-multi-menu {
+          display: block;
+        }
+        .codex-menu-search {
+          padding: 8px;
+          border-bottom: 1px solid #edf0f5;
+        }
+        .codex-menu-search input {
+          width: 100%;
+          height: 30px;
+          border: 1px solid #d0d5dd;
+          border-radius: 4px;
+          padding: 0 8px;
+          outline: 0;
+          font-size: 12px;
+        }
+        .codex-menu-actions {
+          display: flex;
+          justify-content: space-between;
+          padding: 7px 8px;
+          border-bottom: 1px solid #edf0f5;
+        }
+        .codex-menu-actions button,
+        .codex-list-filter-actions button {
+          border: 0;
+          background: transparent;
+          color: #7a18d6;
+          cursor: pointer;
+          font-size: 12px;
+        }
+        .codex-menu-options {
+          max-height: 156px;
+          overflow: auto;
+          padding: 4px 0;
+        }
+        .codex-menu-options label {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          min-height: 30px;
+          padding: 0 10px;
+          cursor: pointer;
+          font-size: 12px;
+        }
+        .codex-menu-options label:hover {
+          background: #f7f4ff;
+        }
+        .codex-date-range {
+          display: grid;
+          grid-template-columns: 1fr 18px 1fr;
+          align-items: center;
+          gap: 6px;
+        }
+        .codex-date-range input {
+          height: 34px;
+          border: 1px solid #d0d5dd;
+          border-radius: 4px;
+          padding: 0 8px;
+          outline: 0;
+          font-size: 12px;
+        }
+        .codex-filter-help {
+          display: none;
+        }
+        .codex-list-filter-actions {
+          display: flex;
+          align-items: center;
+          justify-content: flex-start;
+          gap: 10px;
+          grid-column: span 4;
+          padding-top: 2px;
+        }
+        .codex-filter-reset,
+        .codex-filter-query {
+          height: 32px;
+          min-width: 72px;
+          border-radius: 4px !important;
+          font-size: 13px !important;
+        }
+        .codex-filter-reset {
+          border: 1px solid #d0d5dd !important;
+          color: #344054 !important;
+          background: #fff !important;
+        }
+        .codex-filter-query {
+          border: 1px solid #8f22e6 !important;
+          color: #fff !important;
+          background: #8f22e6 !important;
+        }
+        .codex-filter-toast {
+          display: none;
+          margin-left: 4px;
+          color: #027a48;
+          font-size: 12px;
+        }
+        .codex-list-filter-panel.filtered .codex-filter-toast {
+          display: block;
+        }
+        .codex-preview-record-mounted > :not(.codex-preview-record-panel) {
+          display: none !important;
+          visibility: hidden !important;
+        }
+        .codex-preview-record-panel {
+          position: absolute;
+          left: 0;
+          top: 0;
+          z-index: 9999;
+          width: 690px;
+          max-width: 100%;
+          min-height: 520px;
+          background: #fff;
+          font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+          color: #1f2937;
+          overflow: hidden;
+        }
+        .codex-preview-record-panel * {
+          box-sizing: border-box;
+        }
+        .codex-preview-record-list {
+          border: 1px solid #e5e7eb;
+          border-radius: 4px;
+          overflow: hidden;
+          background: #fff;
+        }
+        .codex-preview-record-head,
+        .codex-preview-record-row {
+          display: grid;
+          grid-template-columns: 118px 56px 86px 54px minmax(84px, 1fr) 68px 96px;
+          align-items: center;
+          gap: 6px;
+        }
+        .codex-preview-record-head {
+          min-height: 34px;
+          padding: 0 8px;
+          color: #667085;
+          background: #f8fafc;
+          border-bottom: 1px solid #e5e7eb;
+          font-size: 11px;
+        }
+        .codex-preview-record-row {
+          width: 100%;
+          min-height: 48px;
+          border: 0;
+          border-bottom: 1px solid #eef0f4;
+          padding: 6px 8px;
+          background: #fff;
+          color: #1f2937;
+          font-size: 12px;
+          text-align: left;
+          cursor: pointer;
+        }
+        .codex-preview-record-row:last-child {
+          border-bottom: 0;
+        }
+        .codex-preview-record-row.active {
+          background: #fbf7ff;
+          box-shadow: inset 3px 0 0 #8f22e6;
+        }
+        .codex-preview-index {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 98px;
+          height: 22px;
+          border-radius: 12px;
+          color: #8f22e6;
+          background: #f3e8ff;
+          font-weight: 700;
+          font-size: 11px;
+        }
+        .codex-preview-serial-cell {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          align-items: flex-start;
+          min-width: 0;
+        }
+        .codex-preview-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: fit-content;
+          min-height: 20px;
+          border-radius: 11px;
+          padding: 0 6px;
+          font-size: 11px;
+          font-weight: 700;
+          white-space: nowrap;
+        }
+        .codex-preview-badge.ok {
+          color: #027a48;
+          background: #ecfdf3;
+        }
+        .codex-preview-badge.fail {
+          color: #b42318;
+          background: #fef3f2;
+        }
+        .codex-preview-badge.warn {
+          color: #b54708;
+          background: #fffaeb;
+        }
+        .codex-preview-actions {
+          display: flex;
+          justify-content: flex-start;
+          gap: 6px;
+          white-space: normal;
+          flex-wrap: wrap;
+        }
+        .codex-preview-link {
+          border: 0;
+          padding: 0;
+          color: #722ed1;
+          background: transparent;
+          cursor: pointer;
+          font-size: 12px;
+        }
+        .codex-preview-detail {
+          margin-top: 8px;
+          border: 1px solid #d9dce3;
+          border-radius: 4px;
+          background: #fff;
+          overflow: hidden;
+        }
+        .codex-preview-detail-head {
+          min-height: 44px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+          padding: 6px 10px;
+          border-bottom: 1px solid #e5e7eb;
+          background: #fcfcfd;
+          font-weight: 700;
+        }
+        .codex-preview-detail-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          align-items: center;
+          justify-content: flex-end;
+        }
+        .codex-preview-paper-wrap {
+          padding: 8px;
+          background: #f8fafc;
+        }
+        .codex-preview-paper {
+          min-height: 300px;
+          border: 1px solid #cfd4df;
+          background: #fff;
+          padding: 10px;
+        }
+        .codex-preview-paper-title {
+          margin-bottom: 8px;
+          text-align: center;
+          font-weight: 700;
+          font-size: 14px;
+        }
+        .codex-preview-paper-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+          margin-bottom: 8px;
+        }
+        .codex-preview-box {
+          min-height: 62px;
+          border: 1px solid #d9dce3;
+          padding: 6px;
+          line-height: 1.45;
+          white-space: pre-line;
+          font-size: 11px;
+        }
+        .codex-preview-box h4 {
+          margin: 0 0 4px;
+          font-size: 11px;
+        }
+        .codex-preview-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 11px;
+        }
+        .codex-preview-table th,
+        .codex-preview-table td {
+          border: 1px solid #d9dce3;
+          padding: 5px;
+          text-align: left;
+          vertical-align: top;
+        }
+        .codex-preview-table th {
+          color: #667085;
+          background: #f6f7fb;
+        }
+      `;
+        doc.head.appendChild(style);
+      }
+
+      const targetStates = Array.from(doc.querySelectorAll('.panel_state[data-label="草稿件"], .panel_state[data-label="VC件"]'));
+      targetStates.forEach((state) => {
+        if (state.querySelector(":scope > .codex-submit-record-entry")) {
+          return;
+        }
+
+        if (getComputedStyle(state).position === "static") {
+          state.style.position = "relative";
+        }
+        state.style.overflow = "auto";
+
+        const button = doc.createElement("button");
+        button.className = "codex-submit-record-entry";
+        button.type = "button";
+        button.innerHTML = "<span>提交记录</span><strong>2</strong>";
+        button.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          openSubmitRecordDialog();
+        }, true);
+        state.appendChild(button);
+
+        const stateWidth = state.getBoundingClientRect().width;
+        if (stateWidth && stateWidth < 700) {
+          button.style.right = "16px";
+          button.style.width = "122px";
+          button.style.fontSize = "14px";
+        }
+      });
+
+      injectPreviewRecordTab(doc);
+      hideInlineDiffPanels(doc);
+    }
+
+    function injectPreviewRecordTab(doc) {
+      const labels = {
+        draftRecord: "\u8349\u7a3f\u8bb0\u5f55",
+        previewRecord: "\u9884\u89c8\u4ef6\u8bb0\u5f55",
+        preview: "\u9884\u89c8\u4ef6"
+      };
+      const states = Array.from(doc.querySelectorAll(".panel_state"));
+      const previewState = states.find((state) => {
+        const label = state.getAttribute("data-label") || "";
+        if (label === labels.draftRecord || label === labels.previewRecord || label === labels.preview) {
+          const id = state.id || "";
+          const prefix = id.replace(/_state\d+$/, "_state");
+          const siblingLabels = states
+            .filter((item) => (item.id || "").startsWith(prefix))
+            .map((item) => item.getAttribute("data-label") || "");
+          return siblingLabels.includes("\u0056\u0043\u4ef6") && siblingLabels.includes("\u8349\u7a3f\u4ef6");
+        }
+        return false;
+      }) || doc.getElementById("u4081_state3") || doc.getElementById("u11766_state3") || doc.getElementById("u3596_state2");
+
+      if (!previewState) {
+        return;
+      }
+
+      const previewContent = previewState.querySelector(":scope > .panel_state_content") || previewState;
+      if (previewState.querySelector(":scope > .codex-preview-record-panel")) {
+        return;
+      }
+
+      if (getComputedStyle(previewState).position === "static") {
+        previewState.style.position = "relative";
+      }
+      if (getComputedStyle(previewContent).position === "static") {
+        previewContent.style.position = "relative";
+      }
+      previewState.style.overflow = "auto";
+      previewContent.style.minHeight = "520px";
+
+      const panel = doc.createElement("section");
+      panel.className = "codex-preview-record-panel";
+      panel.id = "codexPreviewRecordPanel";
+      panel.innerHTML = `
+        <div class="codex-preview-record-list">
+          <div class="codex-preview-record-head"><span>&#39044;&#35272;&#20214;&#27969;&#27700;&#21495;/&#26469;&#28304;</span><span>&#25552;&#20132;&#20154;</span><span>&#25552;&#20132;&#26102;&#38388;</span><span>&#29366;&#24577;</span><span>&#24322;&#24120;&#21407;&#22240;</span><span>&#27604;&#23545;&#29366;&#24577;</span><span>&#25805;&#20316;</span></div>
+          <button class="codex-preview-record-row active" type="button" data-preview-id="PV-20251120-003">
+            <span class="codex-preview-serial-cell"><span class="codex-preview-index">PV-20251120-003</span><span class="codex-preview-badge warn">&#25552;&#20132;&#33337;&#21496;</span></span><span>admin</span><span>11-20 18:36</span><span><span class="codex-preview-badge ok">&#25104;&#21151;</span></span><span>&#36135;&#37325;/&#20307;&#31215;&#19981;&#19968;&#33268;</span><span><span class="codex-preview-badge warn">&#24322;&#24120;</span></span><span class="codex-preview-actions"><span class="codex-preview-link">&#32852;&#31995;&#23458;&#25143;</span><span class="codex-preview-link">&#26597;&#30475;&#19981;&#19968;&#33268;</span></span>
+          </button>
+          <button class="codex-preview-record-row" type="button" data-preview-id="PV-20251118-002">
+            <span class="codex-preview-serial-cell"><span class="codex-preview-index">PV-20251118-002</span><span class="codex-preview-badge ok">&#25552;&#20132;&#39044;&#35272;</span></span><span>kelly</span><span>11-18 10:16</span><span><span class="codex-preview-badge ok">&#25104;&#21151;</span></span><span>-</span><span><span class="codex-preview-badge ok">&#19968;&#33268;</span></span><span class="codex-preview-actions"><span class="codex-preview-link">&#32852;&#31995;&#23458;&#25143;</span></span>
+          </button>
+          <button class="codex-preview-record-row" type="button" data-preview-id="PV-20251112-001">
+            <span class="codex-preview-serial-cell"><span class="codex-preview-index">PV-20251112-001</span><span class="codex-preview-badge ok">&#25552;&#20132;&#39044;&#35272;</span></span><span>admin</span><span>11-12 16:48</span><span><span class="codex-preview-badge fail">&#24322;&#24120;</span></span><span>&#25910;&#36135;&#20154;&#32570;&#23569; UEN</span><span>-</span><span class="codex-preview-actions"><span class="codex-preview-link">&#32852;&#31995;&#23458;&#25143;</span></span>
+          </button>
+        </div>
+        <div class="codex-preview-detail">
+          <div class="codex-preview-detail-head">
+            <div><span id="codexPreviewRecordTitle">&#39044;&#35272;&#20214; PV-20251120-003</span><span id="codexPreviewRecordBadge" class="codex-preview-badge warn" style="margin-left:8px;">PV-20251120-003</span></div>
+            <div class="codex-preview-detail-actions"><button class="codex-preview-link" type="button">&#25552;&#20132;&#25130;&#22270;</button><button class="codex-preview-link" type="button">&#19979;&#36733;</button></div>
+          </div>
+          <div class="codex-preview-paper-wrap">
+            <div class="codex-preview-paper">
+              <div class="codex-preview-paper-title">MBL &#39044;&#35272;&#20214;&#23637;&#31034;&#26679;&#24335;</div>
+              <div class="codex-preview-paper-grid">
+                <div class="codex-preview-box"><h4>SHIPPER</h4><span id="codexPreviewShipper">BEI JING KANG JIE KONG INTERNATIONAL\nCARGO AGENT CO., LTD.\nWUHAN HUBEI 430023 PEOPLE'S REPUBLIC OF CHINA</span></div>
+                <div class="codex-preview-box"><h4>B/L NO.</h4>SHCS5M00800<br><br><h4>BOOKING NO.</h4>26358190</div>
+                <div class="codex-preview-box"><h4>CONSIGNEE</h4><span id="codexPreviewConsignee">SWAM TET COMPANY LIMITED\nADDRESS: NO.(315), TINE TAR MIN GYI STREET\nYANGON MYANMAR</span></div>
+                <div class="codex-preview-box"><h4>NOTIFY PARTY</h4>SAME AS CONSIGNEE</div>
+              </div>
+              <table class="codex-preview-table">
+                <thead><tr><th>Marks and No.</th><th>No. of packages</th><th>Description of goods</th><th>Gross Weight</th><th>Measurement</th></tr></thead>
+                <tbody id="codexPreviewCargo"><tr><td>N/M</td><td>6 BAGS</td><td>SPEAKER / OUTDOOR DRAINS<br>HS CODE: 732599</td><td>39288.01 KGS</td><td>266.5 CBM</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+      previewState.appendChild(panel);
+      previewContent.classList.add("codex-preview-record-mounted");
+
+      const previewData = {
+        "PV-20251112-001": {
+          title: "\u9884\u89c8\u4ef6 PV-20251112-001",
+          cls: "fail",
+          shipper: "BEI JING KANG JIE KONG INTERNATIONAL\nCARGO AGENT CO., LTD.",
+          consignee: "SWAM TET COMPANY LIMITED\nADDRESS \u7f3a\u5931",
+          cargo: "<tr><td>N/M</td><td>-</td><td>\u751f\u6210\u5931\u8d25\uff1a\u6536\u8d27\u4eba\u5730\u5740\u7f3a\u5c11 UEN</td><td>-</td><td>-</td></tr>"
+        },
+        "PV-20251118-002": {
+          title: "\u9884\u89c8\u4ef6 PV-20251118-002",
+          cls: "ok",
+          shipper: "BEI JING KANG JIE KONG INTERNATIONAL\nCARGO AGENT CO., LTD.\nWUHAN HUBEI 430023",
+          consignee: "SWAM TET COMPANY LIMITED\nYANGON MYANMAR",
+          cargo: "<tr><td>N/M</td><td>6 BAGS</td><td>SPEAKER</td><td>39286 KGS</td><td>263.5 CBM</td></tr>"
+        },
+        "PV-20251120-003": {
+          title: "\u9884\u89c8\u4ef6 PV-20251120-003",
+          cls: "warn",
+          shipper: "BEI JING KANG JIE KONG INTERNATIONAL\nCARGO AGENT CO., LTD.\nWUHAN HUBEI 430023 PEOPLE'S REPUBLIC OF CHINA",
+          consignee: "SWAM TET COMPANY LIMITED\nADDRESS: NO.(315), TINE TAR MIN GYI STREET\nYANGON MYANMAR",
+          cargo: "<tr><td>N/M</td><td>6 BAGS</td><td>SPEAKER / OUTDOOR DRAINS<br>HS CODE: 732599</td><td>39288.01 KGS</td><td>266.5 CBM</td></tr>"
+        }
+      };
+
+      function selectPreviewRecord(id) {
+        const data = previewData[id] || previewData["PV-20251120-003"];
+        panel.querySelectorAll(".codex-preview-record-row").forEach((row) => {
+          row.classList.toggle("active", row.dataset.previewId === id);
+        });
+        panel.querySelector("#codexPreviewRecordTitle").textContent = data.title;
+        const badge = panel.querySelector("#codexPreviewRecordBadge");
+        badge.textContent = id;
+        badge.className = "codex-preview-badge " + data.cls;
+        panel.querySelector("#codexPreviewShipper").textContent = data.shipper;
+        panel.querySelector("#codexPreviewConsignee").textContent = data.consignee;
+        panel.querySelector("#codexPreviewCargo").innerHTML = data.cargo;
+      }
+
+      panel.querySelectorAll(".codex-preview-record-row").forEach((row) => {
+        row.addEventListener("click", () => selectPreviewRecord(row.dataset.previewId));
+      });
+
+      const win = doc.defaultView || frame.contentWindow;
+      win.__codexSelectPreviewRecord = (id) => {
+        showPreviewRecordState(doc);
+        selectPreviewRecord(id);
+        const row = panel.querySelector(`[data-preview-id="${id}"]`);
+        if (row) {
+          row.scrollIntoView({ block: "center", inline: "nearest" });
+          row.focus({ preventScroll: true });
+        }
+      };
+      selectPreviewRecord("PV-20251120-003");
+    }
+
+    function showPreviewRecordState(doc) {
+      const panel = doc.getElementById("codexPreviewRecordPanel");
+      const previewState = panel && panel.closest(".panel_state");
+      if (!previewState || !/_state\d+$/.test(previewState.id)) {
+        return;
+      }
+
+      const statePrefix = previewState.id.replace(/_state\d+$/, "_state");
+      Array.from(doc.querySelectorAll(`[id^="${statePrefix}"].panel_state`)).forEach((state) => {
+        const isPreview = state === previewState;
+        state.style.visibility = isPreview ? "visible" : "hidden";
+        state.style.display = isPreview ? "block" : "none";
+      });
+
+      Array.from(doc.querySelectorAll(".ax_default")).forEach((node) => {
+        node.classList.remove("selected");
+        const nodeDiv = node.querySelector("div");
+        if (nodeDiv) {
+          nodeDiv.classList.remove("selected");
+        }
+        const text = (node.textContent || "").replace(/\s+/g, "");
+        if (text.includes("\u9884\u89c8\u4ef6\u8bb0\u5f55")) {
+          node.classList.add("selected");
+          const div = node.querySelector("div");
+          if (div) {
+            div.classList.add("selected");
+          }
+        }
+      });
+    }
+
+    function isMblListPage() {
+      return activePage === "mbl制单列表__最新版本）__0316版本）（0330）（v0410_.html";
+    }
+
+    function injectListFilterPanel(doc) {
+      if (!isMblListPage() || doc.getElementById("codexListFilterPanel")) {
+        return;
+      }
+
+      const panel = doc.createElement("section");
+      panel.id = "codexListFilterPanel";
+      panel.className = "codex-list-filter-panel";
+      panel.innerHTML = `
+        <div class="codex-list-filter-head">
+          <strong>筛选条件</strong>
+          <span class="codex-list-filter-history">账号级历史筛选：已自动恢复最新一次筛选，修改任一条件后实时更新</span>
+        </div>
+        <div class="codex-list-filter-body">
+          ${createMultiFilterMarkup("委托客户", "customer", ["ACME Trading", "上海远航物流", "NINGBO EXPORT", "Global Ocean", "COSCO客户A"])}
+          ${createMultiFilterMarkup("船司", "carrier", ["COSCO", "MSK", "ONE", "CMA CGM", "HMM"])}
+          ${createMultiFilterMarkup("处理人", "handler", ["admin", "kelly", "Elean", "Xiaowei", "Sky Tuski"])}
+          ${createMultiFilterMarkup("更新人", "updater", ["admin", "kelly", "Dabao", "Elean", "system"])}
+          <div class="codex-filter-field" data-field="updateTime">
+            <span class="codex-filter-label">更新时间</span>
+            <div class="codex-date-range">
+              <input data-date-start type="text" placeholder="开始时间">
+              <span>至</span>
+              <input data-date-end type="text" placeholder="结束时间">
+            </div>
+            <div class="codex-filter-help">时间区间筛选框</div>
+          </div>
+          <div class="codex-filter-field" data-field="billNo">
+            <span class="codex-filter-label">提单号</span>
+            <div class="codex-filter-control">
+              <input data-bill-input type="text" placeholder="输入后按 Enter，可用英文逗号、分号、空格隔开">
+            </div>
+            <div class="codex-filter-help">支持多选：英文逗号、分号、空格分隔</div>
+          </div>
+          <div class="codex-list-filter-actions">
+            <button class="codex-filter-reset" type="button" data-filter-reset>重置</button>
+            <button class="codex-filter-query" type="button" data-filter-query>查询</button>
+            <span class="codex-filter-toast">已记录最新筛选</span>
+          </div>
+        </div>
+      `;
+      doc.body.appendChild(panel);
+      doc.body.classList.add("codex-list-filter-mounted");
+      hideLegacyListFilters(doc);
+      bindListFilterPanel(doc, panel);
+      restoreListFilterHistory(panel);
+    }
+
+    function hideLegacyListFilters(doc) {
+      Array.from(doc.querySelectorAll(".ax_default")).forEach((node) => {
+        const text = (node.textContent || "").replace(/\s+/g, "");
+        const rect = node.getBoundingClientRect();
+        const isTopFilterArea = rect.top > 42 && rect.top < 238 && rect.left < 1180;
+        const keepContent = text.includes("MBL管理") || text.includes("MBL制单列表");
+        if (isTopFilterArea && !keepContent) {
+          node.style.visibility = "hidden";
+        }
+      });
+    }
+
+    function createMultiFilterMarkup(label, field, options) {
+      return `
+        <div class="codex-filter-field" data-field="${field}">
+          <span class="codex-filter-label">${label}</span>
+          <div class="codex-filter-control" data-filter-toggle>
+            <span class="codex-filter-placeholder">请选择</span>
+            <span class="codex-filter-count">0</span>
+          </div>
+          <div class="codex-multi-menu">
+            <div class="codex-menu-search"><input type="text" placeholder="模糊搜索，忽略大小写" data-menu-search></div>
+            <div class="codex-menu-actions">
+              <button type="button" data-select-all>全选</button>
+              <button type="button" data-clear-all>取消全选</button>
+            </div>
+            <div class="codex-menu-options">
+              ${options.map((option) => `<label data-option-label="${option.toLowerCase()}"><input type="checkbox" value="${option}"><span>${option}</span></label>`).join("")}
+            </div>
+          </div>
+          <div class="codex-filter-help"></div>
+        </div>
+      `;
+    }
+
+    function bindListFilterPanel(doc, panel) {
+      panel.querySelectorAll("[data-filter-toggle]").forEach((toggle) => {
+        toggle.addEventListener("click", (event) => {
+          event.stopPropagation();
+          const field = toggle.closest(".codex-filter-field");
+          panel.querySelectorAll(".codex-filter-field.open").forEach((item) => {
+            if (item !== field) {
+              item.classList.remove("open");
+            }
+          });
+          field.classList.toggle("open");
+        });
+      });
+
+      panel.querySelectorAll("[data-menu-search]").forEach((input) => {
+        input.addEventListener("input", () => {
+          const keyword = input.value.trim().toLowerCase();
+          input.closest(".codex-multi-menu").querySelectorAll("[data-option-label]").forEach((label) => {
+            label.style.display = label.dataset.optionLabel.includes(keyword) ? "flex" : "none";
+          });
+        });
+      });
+
+      panel.querySelectorAll("[data-select-all]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const field = button.closest(".codex-filter-field");
+          field.querySelectorAll('.codex-menu-options label:not([style*="display: none"]) input').forEach((checkbox) => {
+            checkbox.checked = true;
+          });
+          updateMultiFilterDisplay(field);
+          markListFiltered(panel);
+        });
+      });
+
+      panel.querySelectorAll("[data-clear-all]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const field = button.closest(".codex-filter-field");
+          field.querySelectorAll("input[type='checkbox']").forEach((checkbox) => {
+            checkbox.checked = false;
+          });
+          updateMultiFilterDisplay(field);
+          markListFiltered(panel);
+        });
+      });
+
+      panel.querySelectorAll(".codex-menu-options input").forEach((checkbox) => {
+        checkbox.addEventListener("change", () => {
+          updateMultiFilterDisplay(checkbox.closest(".codex-filter-field"));
+          markListFiltered(panel);
+        });
+      });
+
+      panel.querySelectorAll("[data-date-start], [data-date-end]").forEach((input) => {
+        input.addEventListener("change", () => markListFiltered(panel));
+        input.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            markListFiltered(panel);
+          }
+        });
+      });
+
+      const billInput = panel.querySelector("[data-bill-input]");
+      billInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          const tokens = billInput.value.split(/[,\s;]+/).filter(Boolean);
+          billInput.value = tokens.join(", ");
+          markListFiltered(panel);
+        }
+      });
+
+      panel.querySelector("[data-filter-reset]").addEventListener("click", () => {
+        panel.querySelectorAll("input[type='checkbox']").forEach((checkbox) => {
+          checkbox.checked = false;
+        });
+        panel.querySelectorAll(".codex-filter-field").forEach(updateMultiFilterDisplay);
+        panel.querySelectorAll("[data-date-start], [data-date-end], [data-bill-input], [data-menu-search]").forEach((input) => {
+          input.value = "";
+        });
+        panel.querySelectorAll("[data-option-label]").forEach((label) => {
+          label.style.display = "flex";
+        });
+        panel.classList.remove("filtered");
+      });
+
+      panel.querySelector("[data-filter-query]").addEventListener("click", () => markListFiltered(panel));
+      doc.addEventListener("click", (event) => {
+        if (!panel.contains(event.target)) {
+          panel.querySelectorAll(".codex-filter-field.open").forEach((field) => field.classList.remove("open"));
+        }
+      });
+    }
+
+    function updateMultiFilterDisplay(field) {
+      if (!field || !field.querySelector(".codex-filter-placeholder")) {
+        return;
+      }
+      const checked = Array.from(field.querySelectorAll(".codex-menu-options input:checked")).map((item) => item.value);
+      const placeholder = field.querySelector(".codex-filter-placeholder");
+      const count = field.querySelector(".codex-filter-count");
+      field.classList.toggle("has-value", checked.length > 0);
+      placeholder.textContent = checked.length ? checked.slice(0, 2).join("、") + (checked.length > 2 ? "..." : "") : "请选择";
+      count.textContent = checked.length;
+    }
+
+    function markListFiltered(panel) {
+      panel.classList.add("filtered");
+      const snapshot = {
+        time: new Date().toLocaleString("zh-CN", { hour12: false }),
+        fields: Array.from(panel.querySelectorAll(".codex-filter-field")).map((field) => field.dataset.field)
+      };
+      try {
+        localStorage.setItem("mblListLatestFilterByAccount", JSON.stringify(snapshot));
+      } catch (error) {
+        // local preview may block storage in some shells.
+      }
+    }
+
+    function restoreListFilterHistory(panel) {
+      try {
+        const history = JSON.parse(localStorage.getItem("mblListLatestFilterByAccount") || "null");
+        if (history && history.time) {
+          panel.querySelector(".codex-list-filter-history").textContent = `账号级历史筛选：已恢复最新一次筛选（${history.time}）`;
+        }
+      } catch (error) {
+        // Ignore malformed local preview history.
+      }
+    }
+
+    function hideInlineDiffPanels(doc) {
+      Array.from(doc.querySelectorAll('[data-label="二次弹框"]')).forEach((node) => {
+        if (node.querySelector('[data-label="查看不一致字段"]') || (node.textContent || "").includes("查看不一致字段")) {
+          node.classList.add("codex-force-hide-diff-panel");
+        }
+      });
+
+      const candidates = Array.from(doc.querySelectorAll(".ax_default, .panel_state, [id]"));
+      candidates.forEach((node) => {
+        if (node.classList.contains("codex-submit-record-entry")) {
+          return;
+        }
+
+        const text = (node.textContent || "").replace(/\s+/g, "");
+        if (text.includes("总件数") && text.includes("总体积") && text.includes("总重量") && text.includes("值不匹配")) {
+          node.classList.add("codex-force-hide-diff-panel");
+        }
+      });
+
+      const diffCellTexts = ["总件数", "总体积", "总重量", "266.5", "263.5", "39288.01", "39286", "值不匹配", "-"];
+      Array.from(doc.querySelectorAll("div[id], span, p")).forEach((node) => {
+        const text = (node.textContent || "").replace(/\s+/g, "");
+        if (!diffCellTexts.includes(text)) {
+          return;
+        }
+
+        const rect = node.getBoundingClientRect();
+        if (rect.top > 45 && rect.top < 190 && rect.left > 20 && rect.left < 820) {
+          let current = node;
+          for (let i = 0; i < 3 && current; i += 1) {
+            if (current.id || current.classList.contains("ax_default")) {
+              current.classList.add("codex-force-hide-diff-panel");
+              break;
+            }
+            current = current.parentElement;
+          }
+        }
+      });
+
+      Array.from(doc.querySelectorAll("div[id]")).forEach((node) => {
+        const rect = node.getBoundingClientRect();
+        if (rect.top > 55 && rect.top < 180 && rect.left > 40 && rect.left < 760 && rect.width > 300 && rect.height < 40) {
+          node.classList.add("codex-force-hide-diff-panel");
+        }
+      });
+    }
+
+    function scheduleSubmitRecordInjection() {
+      [120, 450, 900, 1500, 2400, 3600].forEach((delay) => {
+        window.setTimeout(() => {
+          injectSubmitRecordEntry();
+          let doc;
+          try {
+            doc = frame.contentDocument || frame.contentWindow.document;
+          } catch (error) {
+            return;
+          }
+          if (doc) {
+            hideInlineDiffPanels(doc);
+          }
+        }, delay);
+      });
+    }
+
+    searchInput.addEventListener("input", () => renderList(searchInput.value));
+
+    function openNav() {
+      sidebar.classList.add("open");
+      navToggle.classList.add("active");
+      navToggle.setAttribute("aria-expanded", "true");
+    }
+
+    function closeNav() {
+      sidebar.classList.remove("open");
+      navToggle.classList.remove("active");
+      navToggle.setAttribute("aria-expanded", "false");
+    }
+
+    navToggle.setAttribute("aria-controls", "pageList");
+    navToggle.setAttribute("aria-expanded", "false");
+    navToggle.addEventListener("click", () => {
+      if (sidebar.classList.contains("open")) {
+        closeNav();
+      } else {
+        openNav();
+      }
+    });
+
+    document.addEventListener("pointerdown", (event) => {
+      if (!sidebar.classList.contains("open")) {
+        return;
+      }
+
+      if (sidebar.contains(event.target) || navToggle.contains(event.target)) {
+        return;
+      }
+
+      closeNav();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeSubmitRecordDialog();
+        closeSubmitSnapshotOverlay();
+        closeReturnImageOverlay();
+        closeDiffContentOverlay();
+        closeContactCustomerOverlay();
+        closeNav();
+      }
+    });
+
+    function openSubmitRecordDialog() {
+      closeSubmitSnapshotOverlay();
+      closeReturnImageOverlay();
+      closeDiffContentOverlay();
+      submitRecordDialog.classList.add("open");
+      closeNav();
+    }
+
+    function closeSubmitRecordDialog() {
+      submitRecordDialog.classList.remove("open");
+    }
+
+    function openSubmitSnapshotOverlay() {
+      closeReturnImageOverlay();
+      closeDiffContentOverlay();
+      submitSnapshotOverlay.classList.add("open");
+    }
+
+    function closeSubmitSnapshotOverlay() {
+      submitSnapshotOverlay.classList.remove("open");
+    }
+
+    function openReturnImageOverlay() {
+      closeSubmitSnapshotOverlay();
+      closeDiffContentOverlay();
+      returnImageOverlay.classList.add("open");
+    }
+
+    function closeReturnImageOverlay() {
+      returnImageOverlay.classList.remove("open");
+    }
+
+    function openDiffContentOverlay() {
+      closeSubmitSnapshotOverlay();
+      closeReturnImageOverlay();
+      closeContactCustomerOverlay();
+      diffContentOverlay.classList.add("open");
+    }
+
+    function closeDiffContentOverlay() {
+      diffContentOverlay.classList.remove("open");
+    }
+
+    function openContactCustomerOverlay(previewId) {
+      closeSubmitSnapshotOverlay();
+      closeReturnImageOverlay();
+      closeDiffContentOverlay();
+      if (contactPreviewAttachment) {
+        contactPreviewAttachment.textContent = (previewId || "PV-20251120-003") + ".pdf";
+      }
+      contactCustomerOverlay.classList.add("open");
+    }
+
+    function closeContactCustomerOverlay() {
+      contactCustomerOverlay.classList.remove("open");
+    }
+
+    function jumpToPreviewRecord(previewId) {
+      closeSubmitRecordDialog();
+      let doc;
+      let win;
+      try {
+        doc = frame.contentDocument || frame.contentWindow.document;
+        win = frame.contentWindow;
+      } catch (error) {
+        return;
+      }
+
+      if (!doc || !win) {
+        return;
+      }
+
+      injectSubmitRecordEntry();
+      let attempts = 0;
+      const run = () => {
+        attempts += 1;
+        injectSubmitRecordEntry();
+        if (win && typeof win.__codexSelectPreviewRecord === "function") {
+          win.__codexSelectPreviewRecord(previewId);
+          return;
+        }
+        if (attempts < 8) {
+          window.setTimeout(run, 160);
+        }
+      };
+      run();
+    }
+
+    frame.addEventListener("load", () => {
+      scheduleSubmitRecordInjection();
+
+      window.setTimeout(() => {
+        let doc;
+        try {
+          doc = frame.contentDocument || frame.contentWindow.document;
+        } catch (error) {
+          return;
+        }
+
+        if (!doc || doc.__codexSubmitRecordListenerReady) {
+          return;
+        }
+
+        doc.__codexSubmitRecordListenerReady = true;
+        doc.addEventListener("click", (event) => {
+          if (event.target && event.target.closest && event.target.closest(".codex-submit-record-entry")) {
+            return;
+          }
+
+          scheduleSubmitRecordInjection();
+          hideInlineDiffPanels(doc);
+          const target = event.target && event.target.closest ? event.target.closest("button, span, p, div, a") : event.target;
+          if (!target || !target.textContent) {
+            return;
+          }
+
+          const text = target.textContent.replace(/\s+/g, "");
+          const isPreviewRecord = !!target.closest('.codex-preview-record-panel, .panel_state[data-label="预览件记录"], .panel_state[data-label="预览件"], .panel_state[data-label="草稿记录"]');
+          const isDraftOrVc = !!target.closest('.panel_state[data-label="草稿件"], .panel_state[data-label="VC件"]');
+
+          if (text.includes("查看不一致") || text.includes("不一致字段")) {
+            event.preventDefault();
+            event.stopPropagation();
+            openDiffContentOverlay();
+            return;
+          }
+
+          if (isPreviewRecord && text.includes("联系客户")) {
+            event.preventDefault();
+            event.stopPropagation();
+            const record = target.closest("[data-preview-id]");
+            openContactCustomerOverlay(record ? record.dataset.previewId : undefined);
+            return;
+          }
+
+          if ((isDraftOrVc || isPreviewRecord) && text.includes("提交截图")) {
+            event.preventDefault();
+            event.stopPropagation();
+            openSubmitSnapshotOverlay();
+          }
+
+          if (isDraftOrVc && (text.includes("异常回执") || text.includes("返回图片"))) {
+            event.preventDefault();
+            event.stopPropagation();
+            openReturnImageOverlay();
+          }
+        }, true);
+      }, 600);
+    });
+    submitRecordClose.addEventListener("click", closeSubmitRecordDialog);
+    document.querySelector(".record-mask").addEventListener("click", closeSubmitRecordDialog);
+    document.querySelectorAll("[data-submit-record-close]").forEach((button) => {
+      button.addEventListener("click", closeSubmitRecordDialog);
+    });
+    document.querySelectorAll(".record-shot-link").forEach((button) => {
+      button.addEventListener("click", openSubmitSnapshotOverlay);
+    });
+    document.querySelectorAll(".record-return-image-link").forEach((button) => {
+      button.addEventListener("click", openReturnImageOverlay);
+    });
+    document.querySelectorAll(".record-preview-link").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        jumpToPreviewRecord(button.dataset.previewId);
+      });
+    });
+    document.querySelectorAll("[data-preview-close]").forEach((button) => {
+      button.addEventListener("click", closeSubmitSnapshotOverlay);
+    });
+    document.querySelectorAll("[data-return-image-close]").forEach((button) => {
+      button.addEventListener("click", closeReturnImageOverlay);
+    });
+    document.querySelectorAll("[data-diff-close]").forEach((button) => {
+      button.addEventListener("click", closeDiffContentOverlay);
+    });
+    document.querySelectorAll("[data-contact-close]").forEach((button) => {
+      button.addEventListener("click", closeContactCustomerOverlay);
+    });
+
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
+
+    function keepSidebarInView(left, top) {
+      const rect = sidebar.getBoundingClientRect();
+      const maxLeft = window.innerWidth - rect.width - 8;
+      const maxTop = window.innerHeight - rect.height - 8;
+      sidebar.style.left = clamp(left, 8, Math.max(8, maxLeft)) + "px";
+      sidebar.style.top = clamp(top, 8, Math.max(8, maxTop)) + "px";
+    }
+
+    dragHandle.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) {
+        return;
+      }
+
+      const rect = sidebar.getBoundingClientRect();
+      dragState = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        left: rect.left,
+        top: rect.top
+      };
+      dragHandle.setPointerCapture(event.pointerId);
+    });
+
+    dragHandle.addEventListener("pointermove", (event) => {
+      if (!dragState || event.pointerId !== dragState.pointerId) {
+        return;
+      }
+
+      const nextLeft = dragState.left + event.clientX - dragState.startX;
+      const nextTop = dragState.top + event.clientY - dragState.startY;
+      keepSidebarInView(nextLeft, nextTop);
+    });
+
+    function stopDragging(event) {
+      if (!dragState || event.pointerId !== dragState.pointerId) {
+        return;
+      }
+
+      dragState = null;
+    }
+
+    dragHandle.addEventListener("pointerup", stopDragging);
+    dragHandle.addEventListener("pointercancel", stopDragging);
+    window.addEventListener("resize", () => {
+      const rect = sidebar.getBoundingClientRect();
+      keepSidebarInView(rect.left, rect.top);
+    });
+
+    const initial = decodeURIComponent(window.location.hash.slice(1));
+    loadPage(pages.some((page) => page.file === initial) ? initial : pages[0].file);
+  </script>
+</body>
+</html>

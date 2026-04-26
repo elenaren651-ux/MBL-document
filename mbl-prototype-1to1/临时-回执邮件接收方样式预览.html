@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>回执邮件接收方样式预览</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f7f8fb;
+      color: #222;
+      font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+      font-size: 12px;
+    }
+    .page {
+      width: 1240px;
+      min-height: 768px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 625px 1004px;
+      background: #f7f8fb;
+      border-left: 1px solid #eef0f4;
+      border-right: 1px solid #eef0f4;
+    }
+    .left-tabs {
+      position: relative;
+      min-height: 768px;
+      background: #fff;
+      border-right: 1px solid #eef0f4;
+      padding-top: 16px;
+    }
+    .left-tab-bar {
+      height: 35px;
+      display: flex;
+      margin-left: 13px;
+    }
+    .left-tab {
+      position: relative;
+      width: 120px;
+      height: 35px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #e6e8ef;
+      border-right: 0;
+      background: #fff;
+      color: #333;
+    }
+    .left-tab:last-child {
+      border-right: 1px solid #e6e8ef;
+    }
+    .left-tab.active {
+      color: #6d35f2;
+      border-color: #6d35f2;
+      background: #fff;
+      font-weight: 600;
+      z-index: 1;
+    }
+    .left-tab.active:after {
+      content: "";
+      position: absolute;
+      left: -1px;
+      right: -1px;
+      bottom: -1px;
+      height: 2px;
+      background: #fff;
+    }
+    .tab-badge {
+      position: absolute;
+      top: -6px;
+      right: -5px;
+      min-width: 15px;
+      height: 15px;
+      padding: 0 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      background: #ff4d6d;
+      color: #fff;
+      font-size: 10px;
+      line-height: 15px;
+      font-weight: 400;
+    }
+    .left-panel-body {
+      width: 600px;
+      height: 608px;
+      margin: 7px 0 0 25px;
+      border: 1px solid #e6e8ef;
+      background: #fff;
+      overflow: hidden;
+    }
+    .si-preview {
+      height: 100%;
+      padding: 14px;
+      background: #fbfcff;
+    }
+    .si-paper {
+      height: 100%;
+      border: 1px solid #d8dde8;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+      padding: 14px 16px;
+      color: #4b5563;
+      line-height: 22px;
+    }
+    .si-paper-title {
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #edf0f6;
+      margin-bottom: 10px;
+      color: #333;
+      font-weight: 600;
+    }
+    .si-line {
+      min-height: 24px;
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      border-bottom: 1px dashed #eef0f4;
+    }
+    .si-line span:first-child {
+      color: #8b8f99;
+    }
+    .right-form {
+      width: 1004px;
+      background: #fff;
+    }
+    .topbar {
+      height: 43px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      border-bottom: 1px solid #eceff5;
+      background: #fff;
+    }
+    .save-time {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #666;
+    }
+    .timeout {
+      color: #ff375f;
+      font-weight: 600;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+    .btn {
+      height: 28px;
+      min-width: 64px;
+      border: 1px solid #d9dce3;
+      border-radius: 2px;
+      background: #fff;
+      color: #333;
+      font-size: 12px;
+    }
+    .btn.primary {
+      border-color: #6d35f2;
+      background: #6d35f2;
+      color: #fff;
+    }
+    .modebar {
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      border-bottom: 1px solid #eef0f4;
+      background: #fff;
+    }
+    .radios,
+    .links {
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      color: #777;
+    }
+    .radio {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dot,
+    .dot-on {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 1px solid #c9cdd6;
+      display: inline-block;
+    }
+    .dot-on {
+      border-color: #6d35f2;
+      box-shadow: inset 0 0 0 3px #fff;
+      background: #6d35f2;
+    }
+    .link {
+      color: #6d35f2;
+    }
+    .content {
+      display: grid;
+      grid-template-columns: 508px 1fr;
+      align-items: start;
+    }
+    .column {
+      min-height: 600px;
+      border-right: 1px solid #eef0f4;
+    }
+    .column:last-child { border-right: 0; }
+    .section {
+      border-bottom: 1px solid #eef0f4;
+      padding: 7px 12px 10px;
+    }
+    .section-title {
+      height: 24px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: #333;
+      font-weight: 600;
+    }
+    .section-title:before {
+      content: "";
+      width: 3px;
+      height: 13px;
+      border-radius: 2px;
+      background: #c9b8ff;
+    }
+    .edit {
+      margin-left: auto;
+      color: #7b45f6;
+      font-weight: 400;
+    }
+    .field-row {
+      min-height: 34px;
+      display: grid;
+      grid-template-columns: 92px 1fr;
+      align-items: center;
+      gap: 8px;
+    }
+    .field-row.thin {
+      min-height: 26px;
+    }
+    .label {
+      color: #666;
+      white-space: nowrap;
+    }
+    .required:before {
+      content: "* ";
+      color: #ff3b58;
+      font-weight: 700;
+    }
+    .control {
+      min-height: 28px;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      border: 1px solid transparent;
+      color: #333;
+      background: #fff;
+    }
+    .input {
+      border-color: #e1e5ed;
+      border-radius: 2px;
+    }
+    .select:after {
+      content: "⌄";
+      margin-left: auto;
+      color: #9aa1ad;
+    }
+    .search {
+      color: #999;
+    }
+    .new-link {
+      color: #7b45f6;
+      margin-left: auto;
+    }
+    .party-box {
+      margin-top: 4px;
+      border: 1px solid #d8c8ff;
+      background: #fff;
+    }
+    .party-line {
+      display: grid;
+      grid-template-columns: 22px 1fr 34px;
+      min-height: 21px;
+      align-items: center;
+      border-bottom: 1px solid #f1eefc;
+    }
+    .party-line:last-child { border-bottom: 0; }
+    .party-line span {
+      padding: 0 8px;
+    }
+    .party-line span:first-child,
+    .party-line span:last-child {
+      color: #8b8f99;
+      text-align: right;
+    }
+    .tip {
+      margin-top: 5px;
+      color: #9096a3;
+      font-size: 11px;
+    }
+    .error {
+      color: #ff3b58;
+      margin-top: 6px;
+    }
+    .checkboxes {
+      display: flex;
+      gap: 22px;
+      padding: 6px 0 2px 100px;
+      color: #666;
+    }
+    .checkbox {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .box {
+      width: 12px;
+      height: 12px;
+      border: 1px solid #cdd2dc;
+      background: #fff;
+    }
+    .receipt {
+      align-items: start;
+      padding-top: 4px;
+    }
+    .receipt .label { padding-top: 7px; }
+    .receipt-input {
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 3px;
+      padding: 5px 8px;
+      border: 1px solid #ff6b7f;
+      border-radius: 2px;
+      color: #333;
+      background: #fff;
+    }
+    .separator {
+      color: #9aa1ad;
+      padding: 0 1px;
+    }
+    .receipt-meta {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 4px;
+      color: #9096a3;
+      font-size: 11px;
+    }
+    .count {
+      color: #7b45f6;
+    }
+    .fee-title {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .fee-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      margin-top: 4px;
+    }
+    .fee-table th,
+    .fee-table td {
+      height: 27px;
+      border-bottom: 1px solid #eef0f4;
+      padding: 0 7px;
+      text-align: left;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .fee-table th {
+      color: #6f7682;
+      font-weight: 400;
+      background: #fff;
+    }
+    .fee-group {
+      color: #555;
+      font-weight: 600;
+      padding-top: 7px;
+    }
+    .textarea-wrap {
+      margin-top: 4px;
+      border: 1px solid #d8c8ff;
+      min-height: 106px;
+      background: #fff;
+    }
+    .textarea-line {
+      display: grid;
+      grid-template-columns: 22px 1fr 34px;
+      min-height: 21px;
+      align-items: center;
+      border-bottom: 1px solid #f1eefc;
+    }
+    .textarea-line:last-child { border-bottom: 0; }
+    .textarea-line span {
+      padding: 0 8px;
+    }
+    .textarea-line span:first-child,
+    .textarea-line span:last-child {
+      color: #8b8f99;
+      text-align: right;
+    }
+    .container-section {
+      border-top: 1px solid #eef0f4;
+      padding: 8px 12px 0;
+    }
+    .container-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      margin-top: 6px;
+    }
+    .container-table th,
+    .container-table td {
+      height: 30px;
+      border: 1px solid #eef0f4;
+      padding: 0 8px;
+      text-align: left;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .container-table th {
+      color: #6f7682;
+      font-weight: 400;
+      background: #fafbfe;
+    }
+    .ops {
+      color: #7b45f6;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <aside class="left-tabs">
+      <div class="left-tab-bar">
+        <div class="left-tab active">SI补料</div>
+        <div class="left-tab">往来邮件(3)</div>
+        <div class="left-tab">预览件记录(5)<span class="tab-badge">2</span></div>
+        <div class="left-tab">草稿件</div>
+        <div class="left-tab">VC件</div>
+      </div>
+      <div class="left-panel-body">
+        <div class="si-preview">
+          <div class="si-paper">
+            <div class="si-paper-title">
+              <span>SI001.PDF</span>
+              <span style="color:#7b45f6;font-weight:400;">查看源文件</span>
+            </div>
+            <div class="si-line"><span>发件人</span><span>elena.ren@oneaix.cim</span></div>
+            <div class="si-line"><span>接收时间</span><span>2025-10-27 12:00:00</span></div>
+            <div class="si-line"><span>主题</span><span>203232301 截单</span></div>
+            <div class="si-line"><span>附件</span><span>5 个附件</span></div>
+            <div style="margin-top:12px;color:#333;font-weight:600;">客户补料内容</div>
+            <div style="margin-top:8px;color:#555;">
+              请补充 HScode、箱号信息。港口取值冲突请确认：xx：01，yy：02。
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="right-form">
+    <header class="topbar">
+      <div class="save-time">
+        <span>上次保存时间：2026-02-11 15:04:28</span>
+      </div>
+      <div class="actions">
+        <span class="timeout">截单倒计 05:00:00</span>
+        <button class="btn primary">提交文件</button>
+        <button class="btn">保存草稿</button>
+        <button class="btn">关闭单</button>
+      </div>
+    </header>
+
+    <div class="modebar">
+      <div class="radios">
+        <span class="radio"><span class="dot-on"></span> 回单</span>
+        <span class="radio"><span class="dot"></span> 制单</span>
+        <span class="radio"><span class="dot"></span> 暂停处理</span>
+      </div>
+      <div class="links">
+        <span>显示草稿</span>
+        <span class="link">发送邮件</span>
+        <span class="link">资料补录</span>
+      </div>
+    </div>
+
+    <main class="content">
+      <section class="column">
+        <div class="section">
+          <div class="section-title">基础信息</div>
+          <div class="field-row thin">
+            <div class="label required">客户信息</div>
+            <div class="control">上海速恒公司</div>
+          </div>
+          <div class="field-row thin">
+            <div class="label required">船司</div>
+            <div class="control select">MSK</div>
+          </div>
+          <div class="field-row thin">
+            <div class="label required">账号</div>
+            <div class="control select">请选择</div>
+          </div>
+          <div class="field-row thin">
+            <div class="label required">订舱单号</div>
+            <div class="control">COAU7263913820</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">相关方信息</div>
+          <div class="field-row">
+            <div class="label required">Shipper</div>
+            <div class="control search">点击查询公司 <span class="new-link">新建</span></div>
+          </div>
+          <div class="party-box">
+            <div class="party-line"><span>1</span><span>Bei Jing Kang Jie Long International</span><span>35</span></div>
+            <div class="party-line"><span>2</span><span>Cargo Agent Co., Ltd.</span><span>21</span></div>
+            <div class="party-line"><span>3</span><span>Wharf Branch Room 26, Tower 8,</span><span>29</span></div>
+            <div class="party-line"><span>4</span><span>Oceanwide International Soho Town</span><span>33</span></div>
+            <div class="party-line"><span>5</span><span>No.8 Fucheng Road, Jianghan</span><span>28</span></div>
+            <div class="party-line"><span>6</span><span>Wuhan Hubei 430023</span><span>27</span></div>
+            <div class="party-line"><span>7</span><span>Republic Of China</span><span>17</span></div>
+          </div>
+          <div class="error">详细信息 不能为空/不能包含中文/最多支持 7 行</div>
+
+          <div class="field-row" style="margin-top:10px;">
+            <div class="label required">Consignee</div>
+            <div class="control"><span class="checkbox"><span class="box"></span> TO ORDER</span><span class="new-link">新建</span></div>
+          </div>
+          <div class="field-row thin">
+            <div class="label"></div>
+            <div class="control search">点击查询公司</div>
+          </div>
+          <div class="party-box">
+            <div class="party-line"><span>1</span><span>SWAN TET COMPANY LIMITED</span><span>27</span></div>
+            <div class="party-line"><span>2</span><span>ADDRESS: NO.(15), TIME TAR MIN GYI STREET,</span><span>50</span></div>
+            <div class="party-line"><span>3</span><span>LIN PAN INDUSTRIAL</span><span>18</span></div>
+            <div class="party-line"><span>4</span><span>ZONE,HLAING THAR YAR TOWNSHIP,YANGON</span><span>42</span></div>
+            <div class="party-line"><span>5</span><span>REGION,MYANMAR</span><span>16</span></div>
+            <div class="party-line"><span>6</span><span>TEL: +0977319746</span><span>15</span></div>
+            <div class="party-line"><span>7</span><span>TAX ID: 09 165 294</span><span>15</span></div>
+          </div>
+
+          <div class="field-row" style="margin-top:10px;">
+            <div class="label required">Notify</div>
+            <div class="control"><span class="checkbox"><span class="box"></span> 同收货人</span></div>
+          </div>
+          <div class="field-row thin">
+            <div class="label"></div>
+            <div class="control search">点击查询公司 <span class="new-link">新建</span></div>
+          </div>
+          <div class="field-row thin">
+            <div class="label required">收货人税号</div>
+            <div class="control input">1234567898765432</div>
+          </div>
+          <div class="field-row thin">
+            <div class="label required">通知人税号</div>
+            <div class="control input">1234567898765432</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">文件信息 <span class="edit">导出补单</span></div>
+          <div class="field-row thin">
+            <div class="label required">装货港</div>
+            <div class="control select">QINGDAO,CHINA</div>
+          </div>
+          <div class="field-row thin">
+            <div class="label required">卸货港</div>
+            <div class="control select">YANGON,MYANMAR</div>
+          </div>
+          <div class="field-row thin">
+            <div class="label required">单据类型</div>
+            <div class="control select">Bill of Lading</div>
+          </div>
+          <div class="checkboxes">
+            <span class="checkbox"><span class="box"></span> 免用箱</span>
+            <span class="checkbox"><span class="box"></span> 目的港代理</span>
+            <span class="checkbox"><span class="box"></span> 转运条款</span>
+            <span class="checkbox"><span class="box"></span> 转货船舶</span>
+          </div>
+          <div class="field-row receipt">
+            <div class="label required">回执邮件接收方</div>
+            <div>
+              <div class="receipt-input">
+                <span>ops@speedy-log.com</span><span class="separator">；</span>
+                <span>doc@speedy-log.com</span><span class="separator">；</span>
+                <span>mbl@speedy-log.com</span>
+              </div>
+              <div class="receipt-meta">
+                <span>最多填入 5 个邮箱，多个邮箱用；隔开</span>
+                <span class="count">3/5</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="column">
+        <div class="section">
+          <div class="section-title">付费信息 <span class="edit">重试</span></div>
+          <div class="field-row thin">
+            <div class="label required">费用展示</div>
+            <div class="control"><span class="radio"><span class="dot"></span> 是</span><span class="radio" style="margin-left:28px;"><span class="dot-on"></span> 否</span></div>
+          </div>
+          <table class="fee-table">
+            <thead>
+              <tr>
+                <th style="width:190px;">基础费用</th>
+                <th style="width:72px;">方式</th>
+                <th>付款方</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Export Service</td><td>预付</td><td>TIANIN BOX...</td></tr>
+              <tr><td>Documentation Fee - Orign</td><td>预付</td><td>TIANIN BOX...</td></tr>
+              <tr><td>Terminal Handling Service - Orign</td><td>预付</td><td>TIANIN BOX...</td></tr>
+            </tbody>
+          </table>
+          <div class="fee-group">运费费用</div>
+          <table class="fee-table">
+            <tbody>
+              <tr><td style="width:190px;">Basic Ocean Freight</td><td style="width:72px;">预付</td><td>TIANIN BOX...</td></tr>
+              <tr><td>Freetime Extension Contracts</td><td>预付</td><td>Assign payer</td></tr>
+              <tr><td>Peak Season Surcharge</td><td>预付</td><td>TIANIN BOX...</td></tr>
+            </tbody>
+          </table>
+          <div class="fee-group">目的港费用</div>
+          <table class="fee-table">
+            <tbody>
+              <tr><td style="width:190px;">Documentation fee - Destination</td><td style="width:72px;">到付</td><td>Assign payer</td></tr>
+              <tr><td>Equipment Positioning Service - Import (CY)</td><td>到付</td><td>Assign payer</td></tr>
+              <tr><td>Terminal Handling Service - Destination</td><td>到付</td><td>Assign payer</td></tr>
+              <tr><td>Container Protect Essential</td><td>到付</td><td>Assign payer</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section">
+          <div class="section-title">货物信息 <span class="edit">船期：3</span></div>
+          <div class="field-row thin">
+            <div class="label required">包装类型</div>
+            <div class="control input select">请选择</div>
+          </div>
+          <div class="error">包装类型 不能为空</div>
+          <div class="field-row thin">
+            <div class="label required">HSCODE</div>
+            <div class="control input">请输入</div>
+          </div>
+          <div class="field-row" style="align-items:start;">
+            <div class="label required" style="padding-top:6px;">货物描述</div>
+            <div>
+              <div class="textarea-wrap">
+                <div class="textarea-line"><span>1</span><span>EXPEDITORS INTERNATIONAL OF</span><span>27</span></div>
+                <div class="textarea-line"><span>2</span><span>WASHINGTON INC.</span><span>15</span></div>
+                <div class="textarea-line"><span>3</span><span>808 AVIATION PKWY SUITE 30</span><span>27</span></div>
+                <div class="textarea-line"><span>4</span><span>MORRISVILLE NC 27560 USA</span><span>24</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="field-row" style="align-items:start;">
+            <div class="label required" style="padding-top:6px;">唛头</div>
+            <div>
+              <div class="textarea-wrap" style="min-height:64px;">
+                <div class="textarea-line"><span>1</span><span>N/M</span><span>3</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <section class="container-section">
+      <div class="section-title">分箱信息</div>
+      <table class="container-table">
+        <thead>
+          <tr>
+            <th>集装箱号</th>
+            <th>封条</th>
+            <th>件数</th>
+            <th>货物重量</th>
+            <th>体积</th>
+            <th style="width:84px;">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>TLLU6152624</td><td>3346</td><td>3346</td><td>18090</td><td>3700</td><td class="ops">◎ 口</td></tr>
+          <tr><td>TLLU6152625</td><td>3346</td><td>3346</td><td>17090</td><td>3700</td><td class="ops">◎ 口</td></tr>
+          <tr><td>TLLU6152626</td><td>3346</td><td>3346</td><td>18090</td><td>3700</td><td class="ops">◎ 口</td></tr>
+        </tbody>
+      </table>
+    </section>
+    </div>
+  </div>
+</body>
+</html>

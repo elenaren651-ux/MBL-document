@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>托运人 TO ORDER 样式预览</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: #1f2937;
+      background: #f5f7fb;
+      font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+      font-size: 13px;
+    }
+
+    .topbar {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: #ffffff;
+      border-bottom: 1px solid #e5e7eb;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+
+    .title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      height: 24px;
+      padding: 0 8px;
+      border-radius: 4px;
+      background: #fff7ed;
+      color: #c2410c;
+      border: 1px solid #fed7aa;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      height: 32px;
+      padding: 0 14px;
+      border-radius: 4px;
+      border: 1px solid #d1d5db;
+      background: #ffffff;
+      color: #374151;
+      cursor: default;
+    }
+
+    .btn.primary {
+      border-color: #2563eb;
+      background: #2563eb;
+      color: #ffffff;
+    }
+
+    .page {
+      display: grid;
+      grid-template-columns: 320px minmax(880px, 1fr);
+      gap: 16px;
+      padding: 16px 20px 32px;
+      min-width: 1240px;
+    }
+
+    .left-panel,
+    .main-panel {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+    }
+
+    .left-panel {
+      overflow: hidden;
+      align-self: start;
+    }
+
+    .left-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid #e5e7eb;
+      font-weight: 600;
+    }
+
+    .tabs {
+      display: grid;
+      gap: 1px;
+      background: #e5e7eb;
+    }
+
+    .tab {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: #ffffff;
+      color: #4b5563;
+    }
+
+    .tab.active {
+      color: #1d4ed8;
+      background: #eff6ff;
+      border-left: 3px solid #2563eb;
+      padding-left: 13px;
+      font-weight: 600;
+    }
+
+    .summary {
+      padding: 14px 16px 18px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .summary-row {
+      display: grid;
+      grid-template-columns: 92px 1fr;
+      gap: 8px;
+      color: #4b5563;
+    }
+
+    .summary-row span:last-child {
+      color: #111827;
+      font-weight: 500;
+    }
+
+    .main-panel {
+      padding: 16px;
+    }
+
+    .section {
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      margin-bottom: 14px;
+      overflow: hidden;
+      background: #ffffff;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 44px;
+      padding: 0 14px;
+      background: #f9fafb;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .section-body {
+      padding: 14px;
+    }
+
+    .basic-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(160px, 1fr));
+      gap: 12px 14px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .label {
+      color: #4b5563;
+      line-height: 20px;
+    }
+
+    .required::before {
+      content: "* ";
+      color: #dc2626;
+      font-weight: 600;
+    }
+
+    .control {
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      background: #ffffff;
+      color: #111827;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .party-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .party {
+      border: 1px solid #dbe3ef;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .party.order-selected {
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 2px #dbeafe inset;
+    }
+
+    .party-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 42px;
+      padding: 0 12px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e5e7eb;
+      font-weight: 600;
+    }
+
+    .party.order-selected .party-head {
+      background: #eff6ff;
+    }
+
+    .party-name {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .check {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 24px;
+      color: #1d4ed8;
+      font-weight: 500;
+    }
+
+    .check-box {
+      width: 14px;
+      height: 14px;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid #2563eb;
+      border-radius: 3px;
+      background: #2563eb;
+      color: #ffffff;
+      font-size: 11px;
+      line-height: 1;
+    }
+
+    .party-body {
+      padding: 12px;
+    }
+
+    .party-grid {
+      display: grid;
+      grid-template-columns: 210px minmax(360px, 1fr) 72px;
+      gap: 12px;
+      align-items: end;
+    }
+
+    .link {
+      color: #2563eb;
+      line-height: 34px;
+      font-weight: 500;
+    }
+
+    .detail-only {
+      display: grid;
+      grid-template-columns: minmax(560px, 760px) 96px;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .textarea {
+      min-height: 146px;
+      padding: 10px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      background: #ffffff;
+      color: #111827;
+      line-height: 24px;
+      white-space: pre-line;
+    }
+
+    .count-column {
+      display: grid;
+      gap: 6px;
+      padding-top: 26px;
+    }
+
+    .line-count {
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      background: #f9fafb;
+      color: #6b7280;
+      font-size: 12px;
+    }
+
+    .limit {
+      margin-top: 8px;
+      color: #6b7280;
+      line-height: 20px;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 12px;
+    }
+
+    .data-table th,
+    .data-table td {
+      height: 34px;
+      border: 1px solid #e5e7eb;
+      padding: 0 8px;
+      text-align: left;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .data-table th {
+      background: #f9fafb;
+      color: #4b5563;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">
+      <span>MBL制单详情</span>
+      <span class="status">待提交船司</span>
+    </div>
+    <div class="actions">
+      <button class="btn">保存</button>
+      <button class="btn primary">提交船司</button>
+    </div>
+  </header>
+
+  <main class="page">
+    <aside class="left-panel">
+      <div class="left-header">单证信息</div>
+      <div class="tabs">
+        <div class="tab active"><span>SI补料</span><span>3</span></div>
+        <div class="tab"><span>往来邮件</span><span>3</span></div>
+        <div class="tab"><span>预览件记录</span><span>5</span></div>
+        <div class="tab"><span>草稿件</span><span>1</span></div>
+        <div class="tab"><span>VC件</span><span>1</span></div>
+      </div>
+      <div class="summary">
+        <div class="summary-row"><span>委托客户</span><span>TOPEVER LOGISTICS</span></div>
+        <div class="summary-row"><span>船司</span><span>MSK</span></div>
+        <div class="summary-row"><span>提单号</span><span>MEDU1234567</span></div>
+        <div class="summary-row"><span>工作单号</span><span>MBL20260423001</span></div>
+      </div>
+    </aside>
+
+    <section class="main-panel">
+      <section class="section">
+        <div class="section-title">基础信息</div>
+        <div class="section-body basic-grid">
+          <div class="field">
+            <div class="label required">船名</div>
+            <div class="control">MAERSK HANGZHOU</div>
+          </div>
+          <div class="field">
+            <div class="label required">航次</div>
+            <div class="control">426W</div>
+          </div>
+          <div class="field">
+            <div class="label required">装货港</div>
+            <div class="control">SHANGHAI</div>
+          </div>
+          <div class="field">
+            <div class="label required">目的港</div>
+            <div class="control">LOS ANGELES</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-title">相关方信息</div>
+        <div class="section-body party-list">
+          <article class="party order-selected">
+            <div class="party-head">
+              <div class="party-name">
+                <span>托运人 Shipper</span>
+                <span class="check"><span class="check-box">✓</span>TO ORDER</span>
+              </div>
+            </div>
+            <div class="party-body">
+              <div class="detail-only">
+                <div class="field">
+                  <div class="label">详细信息（非必填）</div>
+                  <div class="textarea">TO ORDER</div>
+                  <div class="limit">每行50字符，仅允许输入字母、数字和英文符号</div>
+                </div>
+                <div class="count-column">
+                  <div class="line-count">1 / 50</div>
+                  <div class="line-count">0 / 50</div>
+                  <div class="line-count">0 / 50</div>
+                  <div class="line-count">0 / 50</div>
+                  <div class="line-count">0 / 50</div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="party">
+            <div class="party-head">
+              <div class="party-name">
+                <span>收货人 Consignee</span>
+                <span class="check" style="color:#6b7280"><span class="check-box" style="background:#fff;color:#fff;border-color:#9ca3af">✓</span>TO ORDER</span>
+              </div>
+            </div>
+            <div class="party-body">
+              <div class="party-grid">
+                <div class="field">
+                  <div class="label required">公司名称</div>
+                  <div class="control">点击查询公司</div>
+                </div>
+                <div class="field">
+                  <div class="label required">详细信息</div>
+                  <div class="control">TOPEVER LOGISTICS (SHANGHAI) LTD.</div>
+                </div>
+                <div class="link">+ 新建</div>
+              </div>
+            </div>
+          </article>
+
+          <article class="party">
+            <div class="party-head">
+              <div class="party-name">
+                <span>通知人 Notify Party</span>
+              </div>
+            </div>
+            <div class="party-body">
+              <div class="party-grid">
+                <div class="field">
+                  <div class="label required">公司名称</div>
+                  <div class="control">点击查询公司</div>
+                </div>
+                <div class="field">
+                  <div class="label required">详细信息</div>
+                  <div class="control">SAME AS CONSIGNEE</div>
+                </div>
+                <div class="link">+ 新建</div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-title">箱货信息</div>
+        <div class="section-body">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>箱型</th>
+                <th>箱量</th>
+                <th>件数</th>
+                <th>毛重</th>
+                <th>体积</th>
+                <th>品名</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>40HQ</td>
+                <td>1</td>
+                <td>800 CTNS</td>
+                <td>12800 KGS</td>
+                <td>68 CBM</td>
+                <td>GARMENTS</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  </main>
+</body>
+</html>

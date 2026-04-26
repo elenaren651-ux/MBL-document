@@ -1,0 +1,13 @@
+.DS_Store
+Thumbs.db
+
+*.log
+*.out.log
+*.err.log
+
+.idea/
+.vscode/
+
+dist/
+build/
+node_modules/

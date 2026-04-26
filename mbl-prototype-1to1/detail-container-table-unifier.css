@@ -1,0 +1,225 @@
+.mbl-container-unifier {
+  position: absolute;
+  z-index: 9999;
+  box-sizing: border-box;
+  min-width: 0;
+  background: #fff;
+  color: #333;
+  font-family: Arial, "Microsoft YaHei", sans-serif;
+  overflow: visible;
+}
+
+.mbl-container-unifier * {
+  box-sizing: border-box;
+}
+
+.mbl-container-title {
+  display: flex;
+  align-items: center;
+  height: 34px;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #111;
+}
+
+.mbl-container-count {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: #f0f1f4;
+  color: #333;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.mbl-container-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 13px;
+}
+
+.mbl-container-table th {
+  height: 36px;
+  padding: 0 16px;
+  background: #f6f6f7;
+  color: #222;
+  font-weight: 600;
+  text-align: left;
+  border-right: 2px solid #fff;
+  white-space: nowrap;
+}
+
+.mbl-container-table th:last-child {
+  border-right: 0;
+  text-align: center;
+}
+
+.mbl-container-table td {
+  position: relative;
+  height: 52px;
+  padding: 0 18px;
+  border-bottom: 1px solid #e9e9ec;
+  color: #333;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.mbl-container-table td:last-child {
+  padding: 0 12px;
+  text-align: center;
+}
+
+.mbl-container-table .mbl-seal-cell {
+  min-width: 120px;
+  outline: none;
+}
+
+.mbl-container-table .mbl-seal-cell:focus {
+  box-shadow: inset 0 0 0 1px #8c1dff;
+}
+
+.mbl-container-table .mbl-seal-cell.no-seal {
+  color: #9aa0a6;
+  background: #f5f6f8;
+  cursor: not-allowed;
+}
+
+.mbl-container-table .mbl-seal-cell.seal-error {
+  color: #d93026;
+  box-shadow: inset 0 0 0 1px #ff4d4f;
+}
+
+.mbl-container-table .mbl-seal-cell.seal-error::after {
+  content: "请填写托运人封条，若业务确认为无封，请选择托运人封条-无封";
+  position: absolute;
+  left: 18px;
+  bottom: 2px;
+  max-width: 320px;
+  color: #ff3b58;
+  font-size: 11px;
+  line-height: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mbl-container-table .col-container { width: 150px; }
+.mbl-container-table .col-seal-type { width: 176px; }
+.mbl-container-table .col-seal { width: 150px; }
+.mbl-container-table .col-packages { width: 18%; }
+.mbl-container-table .col-weight { width: 18%; }
+.mbl-container-table .col-volume { width: 18%; }
+.mbl-container-table .col-actions { width: 64px; }
+
+.mbl-seal-combo {
+  position: relative;
+  width: 142px;
+}
+
+.mbl-seal-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 142px;
+  height: 32px;
+  padding: 0 8px;
+  border: 2px solid #8c1dff;
+  border-radius: 2px;
+  background: #fff;
+  color: #9aa0a6;
+  font: inherit;
+  cursor: pointer;
+}
+
+.mbl-seal-value {
+  max-width: 112px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mbl-seal-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-left: 4px;
+  border: 1px solid #c9c9cf;
+  border-radius: 50%;
+  color: #8a8f98;
+  font-size: 12px;
+  line-height: 12px;
+}
+
+.mbl-seal-menu {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 44px;
+  width: 164px;
+  padding: 4px 0;
+  border: 1px solid #e1e2e6;
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .12);
+  color: #222;
+}
+
+.mbl-seal-combo.open .mbl-seal-menu {
+  display: block;
+}
+
+.mbl-seal-menu::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: 40px;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-left: 1px solid #e1e2e6;
+  border-top: 1px solid #e1e2e6;
+  transform: rotate(45deg);
+}
+
+.mbl-seal-option {
+  position: relative;
+  height: 34px;
+  padding: 0 20px;
+  line-height: 34px;
+  cursor: pointer;
+}
+
+.mbl-seal-option:hover,
+.mbl-seal-option.active {
+  color: #7a1bff;
+  font-weight: 600;
+}
+
+.mbl-container-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: #8d96a3;
+}
+
+.mbl-container-action {
+  border: 0;
+  background: transparent;
+  color: #8d96a3;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mbl-container-action:disabled {
+  color: #c9ced6;
+  cursor: default;
+}
+
+.mbl-container-action:not(:disabled):hover {
+  color: #7a1bff;
+}

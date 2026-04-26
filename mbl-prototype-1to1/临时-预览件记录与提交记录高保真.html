@@ -1,0 +1,835 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>临时原型 - 预览件记录与提交船司记录</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f5f6f8;
+      color: #1f2937;
+      font: 14px/1.5 "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+    }
+    button, input, select { font: inherit; }
+    .page {
+      min-width: 1440px;
+      min-height: 100vh;
+    }
+    .crumb {
+      height: 42px;
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      background: #fff;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .crumb span { color: #7f7f7f; }
+    .headline {
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: #fff;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .title-wrap, .actions, .tabs, .preview-actions, .form-row, .mail-tools {
+      display: flex;
+      align-items: center;
+    }
+    .title-wrap { gap: 14px; }
+    .tag {
+      width: 48px;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      color: #fff;
+      background: #5ec7eb;
+      font-size: 16px;
+    }
+    .bill-no {
+      color: #2b2f36;
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: 6px;
+    }
+    .status {
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 16px;
+      border-radius: 4px;
+      color: #fff;
+      background: #9254de;
+      font-weight: 600;
+    }
+    .actions { gap: 10px; }
+    .btn {
+      height: 34px;
+      border: 1px solid #d0d5dd;
+      border-radius: 4px;
+      padding: 0 14px;
+      color: #344054;
+      background: #fff;
+      cursor: pointer;
+    }
+    .btn.primary {
+      border-color: #8f22e6;
+      color: #fff;
+      background: #8f22e6;
+    }
+    .link-btn {
+      border: 0;
+      padding: 0;
+      color: #722ed1;
+      background: transparent;
+      cursor: pointer;
+    }
+    .tabs {
+      width: 1120px;
+      margin: 18px 24px 0;
+      background: #fff;
+    }
+    .tab {
+      width: 180px;
+      height: 44px;
+      border: 1px solid #d9d9d9;
+      border-right: 0;
+      color: #111827;
+      background: #fff;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .tab:last-child { border-right: 1px solid #d9d9d9; }
+    .tab.active {
+      border-color: #ff9900;
+      color: #ff9900;
+      z-index: 1;
+    }
+    .content {
+      margin: 0 24px 32px;
+      background: #fff;
+      min-height: 720px;
+      padding: 18px 20px 28px;
+    }
+    .pane { display: none; }
+    .pane.active { display: block; }
+    .workbench {
+      display: grid;
+      grid-template-columns: 620px minmax(680px, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .left-stack, .right-stack {
+      display: grid;
+      gap: 14px;
+    }
+    .panel {
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      background: #fff;
+      overflow: hidden;
+    }
+    .panel-head {
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      border-bottom: 1px solid #e5e7eb;
+      background: #fcfcfd;
+      font-weight: 700;
+    }
+    .panel-body { padding: 14px; }
+    .record-list-head,
+    .preview-record {
+      display: grid;
+      grid-template-columns: 70px 1fr 76px;
+      gap: 8px;
+      align-items: center;
+    }
+    .record-list-head {
+      height: 36px;
+      padding: 0 12px;
+      color: #667085;
+      background: #f8fafc;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 12px;
+    }
+    .preview-record {
+      width: 100%;
+      min-height: 74px;
+      border: 0;
+      border-bottom: 1px solid #eef0f4;
+      padding: 9px 12px;
+      background: #fff;
+      text-align: left;
+      cursor: pointer;
+    }
+    .preview-record.active {
+      background: #fbf7ff;
+      box-shadow: inset 3px 0 0 #8f22e6;
+    }
+    .preview-record:last-child { border-bottom: 0; }
+    .index {
+      width: 46px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      color: #8f22e6;
+      background: #f3e8ff;
+      font-weight: 700;
+    }
+    .record-main strong {
+      display: block;
+      margin-bottom: 3px;
+      color: #111827;
+    }
+    .muted { color: #667085; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 24px;
+      border-radius: 12px;
+      padding: 0 9px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .badge.success { color: #027a48; background: #ecfdf3; }
+    .badge.fail { color: #b42318; background: #fef3f2; }
+    .badge.warning { color: #b54708; background: #fffaeb; }
+    .preview-actions {
+      gap: 14px;
+      justify-content: flex-end;
+    }
+    .preview-paper-wrap {
+      padding: 14px;
+      background: #f8fafc;
+    }
+    .preview-paper {
+      min-height: 420px;
+      border: 1px solid #cfd4df;
+      background: #fff;
+      padding: 16px;
+    }
+    .paper-title {
+      margin-bottom: 14px;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .paper-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .paper-box {
+      min-height: 88px;
+      border: 1px solid #d9dce3;
+      padding: 9px;
+      line-height: 1.5;
+      white-space: pre-line;
+    }
+    .paper-box h4 {
+      margin: 0 0 5px;
+      font-size: 13px;
+    }
+    .paper-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .paper-table th,
+    .paper-table td {
+      border: 1px solid #d9dce3;
+      padding: 7px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .paper-table th {
+      color: #667085;
+      background: #f6f7fb;
+    }
+    .form-section {
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      background: #fff;
+      overflow: hidden;
+    }
+    .form-section-title {
+      height: 42px;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      border-bottom: 1px solid #eef0f4;
+      font-weight: 700;
+    }
+    .form-body {
+      padding: 14px;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .field label {
+      display: block;
+      margin-bottom: 5px;
+      color: #667085;
+      font-size: 12px;
+    }
+    .input {
+      width: 100%;
+      height: 34px;
+      border: 1px solid #d0d5dd;
+      border-radius: 4px;
+      padding: 0 9px;
+      background: #fff;
+    }
+    .party-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .party-box {
+      min-height: 128px;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      padding: 10px;
+      background: #fcfcfd;
+      white-space: pre-line;
+    }
+    .party-box h4 {
+      margin: 0 0 8px;
+      font-size: 13px;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .data-table th,
+    .data-table td {
+      border: 1px solid #e5e7eb;
+      padding: 8px;
+      text-align: left;
+    }
+    .data-table th {
+      color: #667085;
+      background: #f8fafc;
+    }
+    .result-card {
+      width: 760px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 18px;
+      background: #fff;
+    }
+    .result-row {
+      display: grid;
+      grid-template-columns: 92px 1fr 92px 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .result-row label { color: #667085; }
+    .record-entry {
+      height: 36px;
+      border: 1px solid #d9d0ff;
+      border-radius: 2px;
+      padding: 0 14px;
+      color: #7a18d6;
+      background: #fff;
+      cursor: pointer;
+    }
+    .modal-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 23, 42, .45);
+    }
+    .modal-layer.open { display: flex; }
+    .modal {
+      width: 880px;
+      max-height: calc(100vh - 80px);
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 22px 66px rgba(15, 23, 42, .24);
+    }
+    .modal-head {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 20px;
+      font-weight: 700;
+    }
+    .close {
+      border: 0;
+      background: transparent;
+      color: #98a2b3;
+      cursor: pointer;
+      font-size: 26px;
+    }
+    .modal-body {
+      max-height: calc(100vh - 190px);
+      overflow: auto;
+      padding: 18px 20px;
+    }
+    .modal-foot {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 14px 20px;
+      border-top: 1px solid #e5e7eb;
+    }
+    .ship-record {
+      display: grid;
+      grid-template-columns: 64px 12px 1fr;
+      column-gap: 16px;
+      min-height: 116px;
+      position: relative;
+    }
+    .ship-record::before {
+      content: "";
+      position: absolute;
+      top: 28px;
+      bottom: -12px;
+      left: 30px;
+      width: 1px;
+      background: #e5e7eb;
+    }
+    .ship-record:last-child::before { bottom: 30px; }
+    .ship-badge {
+      z-index: 1;
+      height: 30px;
+      border: 1px solid #e5e7eb;
+      border-radius: 15px;
+      background: #fff;
+      color: #98a2b3;
+      text-align: center;
+      line-height: 28px;
+    }
+    .ship-record.latest .ship-badge {
+      border-color: #9b00ff;
+      color: #fff;
+      background: #9b00ff;
+      font-weight: 700;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      margin-top: 42px;
+      border-radius: 50%;
+      background: #02c076;
+    }
+    .dot.fail { background: #ff1457; }
+    .ship-main { padding-bottom: 18px; }
+    .ship-row {
+      display: grid;
+      grid-template-columns: 190px 80px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 10px;
+      color: #667085;
+    }
+    .ship-row strong {
+      color: #111827;
+      font-size: 16px;
+    }
+    .ship-links {
+      display: flex;
+      gap: 14px;
+      justify-content: flex-end;
+      white-space: nowrap;
+    }
+    .preview-id {
+      color: #165dff;
+      cursor: pointer;
+    }
+    .error-text { color: #ff1457; }
+    .mail-modal { width: 752px; }
+    .mail-body { padding: 16px 22px; }
+    .mail-row {
+      display: grid;
+      grid-template-columns: 92px 1fr;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .mail-row label {
+      text-align: right;
+      color: #344054;
+    }
+    .mail-input, .mail-select {
+      width: 100%;
+      height: 32px;
+      border: 1px solid #d0d5dd;
+      border-radius: 4px;
+      padding: 0 10px;
+      background: #fff;
+    }
+    .chip-box {
+      min-height: 32px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      border: 1px solid #d0d5dd;
+      border-radius: 4px;
+      padding: 4px;
+    }
+    .chip {
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      border-radius: 3px;
+      padding: 0 8px;
+      background: #f2f4f7;
+      color: #111827;
+      font-size: 12px;
+    }
+    .attach {
+      display: inline-flex;
+      align-items: center;
+      height: 32px;
+      border: 1px solid #d9d0ff;
+      border-radius: 4px;
+      padding: 0 10px;
+      color: #722ed1;
+      background: #fff;
+    }
+    .editor-tools {
+      height: 34px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      border: 1px solid #d0d5dd;
+      border-bottom: 0;
+      border-radius: 4px 4px 0 0;
+      padding: 0 10px;
+      color: #98a2b3;
+    }
+    .editor {
+      min-height: 190px;
+      border: 1px solid #d0d5dd;
+      border-radius: 0 0 4px 4px;
+      padding: 14px;
+      line-height: 1.8;
+      white-space: pre-line;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="crumb"><span>MBL管理 /</span>&nbsp;MBL接单中间表 / 详情</div>
+    <header class="headline">
+      <div class="title-wrap">
+        <span class="tag">MBL</span>
+        <span class="bill-no">26358190</span>
+        <span class="status">VC异常</span>
+      </div>
+      <div class="actions">
+        <button class="btn">保存草稿</button>
+        <button class="btn primary">提交预览件</button>
+        <button class="btn primary">提交船司</button>
+        <button class="btn">关闭提单</button>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="详情 tabs">
+      <button class="tab" data-tab="si">SI补料</button>
+      <button class="tab" data-tab="mail">往来邮件(3)</button>
+      <button class="tab active" data-tab="preview">预览件记录(5)</button>
+      <button class="tab" data-tab="draft">草稿件</button>
+      <button class="tab" data-tab="vc">VC件</button>
+    </nav>
+
+    <section class="content">
+      <div class="pane active" data-pane="preview">
+        <div class="workbench">
+          <div class="left-stack">
+            <section class="panel">
+              <div class="panel-head">
+                <span>预览件记录</span>
+                <button class="btn primary">提交预览件</button>
+              </div>
+              <div class="record-list-head"><span>次数</span><span>生成信息</span><span>状态</span></div>
+              <button class="preview-record" data-preview="PV-20251112-001">
+                <span class="index">第1次</span>
+                <span class="record-main"><strong>2025-11-12 16:48:10</strong><span class="muted">admin / 提交官网草稿</span></span>
+                <span class="badge fail">异常</span>
+              </button>
+              <button class="preview-record" data-preview="PV-20251118-002">
+                <span class="index">第2次</span>
+                <span class="record-main"><strong>2025-11-18 10:16:42</strong><span class="muted">kelly / 已生成预览件</span></span>
+                <span class="badge success">成功</span>
+              </button>
+              <button class="preview-record active" data-preview="PV-20251120-003">
+                <span class="index">第3次</span>
+                <span class="record-main"><strong>2025-11-20 18:36:05</strong><span class="muted">admin / 最新预览件</span></span>
+                <span class="badge warning">比对异常</span>
+              </button>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <span id="previewTitle">第3次预览件</span>
+                  <span id="previewId" class="badge warning" style="margin-left:8px;">PV-20251120-003</span>
+                </div>
+                <div class="preview-actions">
+                  <button class="link-btn" data-open-mail>联系客户</button>
+                  <button class="link-btn">提交截图</button>
+                  <button class="link-btn">查看不一致字段</button>
+                  <button class="link-btn">下载</button>
+                </div>
+              </div>
+              <div class="preview-paper-wrap">
+                <div class="preview-paper">
+                  <div class="paper-title">MBL 预览件展示样式</div>
+                  <div class="paper-grid">
+                    <div class="paper-box"><h4>SHIPPER</h4><span id="shipperText">BEI JING KANG JIE KONG INTERNATIONAL
+CARGO AGENT CO., LTD.
+WUHAN HUBEI 430023 PEOPLE'S REPUBLIC OF CHINA</span></div>
+                    <div class="paper-box"><h4>B/L NO.</h4><span id="billText">SHCS5M00800</span><br><br><h4>BOOKING NO.</h4>26358190</div>
+                    <div class="paper-box"><h4>CONSIGNEE</h4><span id="consigneeText">SWAM TET COMPANY LIMITED
+ADDRESS: NO.(315), TINE TAR MIN GYI STREET
+YANGON MYANMAR</span></div>
+                    <div class="paper-box"><h4>NOTIFY PARTY</h4>SAME AS CONSIGNEE</div>
+                  </div>
+                  <table class="paper-table">
+                    <thead><tr><th>Marks and No.</th><th>No. of packages</th><th>Description of goods</th><th>Gross Weight</th><th>Measurement</th></tr></thead>
+                    <tbody id="cargoRows">
+                      <tr><td>N/M</td><td>6 BAGS</td><td>SPEAKER / OUTDOOR DRAINS<br>HS CODE: 732599</td><td>39288.01 KGS</td><td>266.5 CBM</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <aside class="right-stack">
+            <section class="form-section">
+              <div class="form-section-title">基础信息</div>
+              <div class="form-body">
+                <div class="form-grid">
+                  <div class="field"><label>客户信息</label><input class="input" value="上海速恒公司"></div>
+                  <div class="field"><label>船司</label><input class="input" value="MSK"></div>
+                  <div class="field"><label>船司账号</label><input class="input" value="lossi (MSK)"></div>
+                  <div class="field"><label>提单号</label><input class="input" value="26358190"></div>
+                  <div class="field"><label>订舱号</label><input class="input" value="COAU263583190"></div>
+                  <div class="field"><label>付款方式</label><input class="input" value="预付"></div>
+                </div>
+              </div>
+            </section>
+            <section class="form-section">
+              <div class="form-section-title">文件信息</div>
+              <div class="form-body">
+                <div class="form-grid">
+                  <div class="field"><label>装货港</label><input class="input" value="SHANGHAI,CN"></div>
+                  <div class="field"><label>卸货港</label><input class="input" value="NEWYORK,US"></div>
+                  <div class="field"><label>目的港</label><input class="input" value="NEWYORK,US"></div>
+                </div>
+              </div>
+            </section>
+            <section class="form-section">
+              <div class="form-section-title">相关方信息</div>
+              <div class="form-body">
+                <div class="party-grid">
+                  <div class="party-box"><h4>Shipper</h4>BEI JING KANG JIE KONG INTERNATIONAL
+CARGO AGENT CO., LTD.
+WUHAN HUBEI 430023</div>
+                  <div class="party-box"><h4>Consignee</h4>SWAM TET COMPANY LIMITED
+ADDRESS: NO.(315), TINE TAR MIN GYI STREET
+YANGON MYANMAR</div>
+                </div>
+              </div>
+            </section>
+            <section class="form-section">
+              <div class="form-section-title">货物与箱信息</div>
+              <div class="form-body">
+                <table class="data-table">
+                  <thead><tr><th>集装箱号</th><th>封号</th><th>HS CODE</th><th>货描</th><th>毛重</th><th>体积</th></tr></thead>
+                  <tbody>
+                    <tr><td>EGSU8017707</td><td>CRRCCRC</td><td>732599</td><td>SPEAKER</td><td>39288.01</td><td>266.5</td></tr>
+                    <tr><td>EGSU8017708</td><td>未填写</td><td>732599</td><td>OUTDOOR DRAINS</td><td>11.000</td><td>9999.000</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </div>
+
+      <div class="pane" data-pane="draft">
+        <div class="panel-head" style="border:1px solid #e5e7eb;border-radius:6px 6px 0 0;">
+          <span>草稿件</span>
+          <button class="record-entry" data-open-submit-record>提交记录 2</button>
+        </div>
+        <div class="result-card" style="border-radius:0 0 6px 6px;">
+          <div class="result-row"><label>提交人</label><span>admin</span><label>提交时间</label><span>2025-11-20 18:49:30</span></div>
+          <div class="result-row"><label>回执时间</label><span>2025-11-20 19:06:42</span><label>提交状态</label><span class="error-text">VC异常</span></div>
+          <button class="link-btn">返回图片</button>
+        </div>
+      </div>
+
+      <div class="pane" data-pane="vc">
+        <div class="panel-head" style="border:1px solid #e5e7eb;border-radius:6px 6px 0 0;">
+          <span>VC件</span>
+          <button class="record-entry" data-open-submit-record>提交记录 2</button>
+        </div>
+        <div class="result-card" style="border-radius:0 0 6px 6px;">
+          <div class="result-row"><label>提交人</label><span>admin</span><label>提交时间</label><span>2025-11-20 18:49:30</span></div>
+          <div class="result-row"><label>回执时间</label><span>2025-11-20 19:06:42</span><label>提交状态</label><span class="error-text">VC异常</span></div>
+          <button class="link-btn">返回图片</button>
+        </div>
+      </div>
+      <div class="pane" data-pane="si"><div class="panel"><div class="panel-head">SI补料</div><div class="panel-body">补料内容占位</div></div></div>
+      <div class="pane" data-pane="mail"><div class="panel"><div class="panel-head">往来邮件</div><div class="panel-body">邮件记录占位</div></div></div>
+    </section>
+  </main>
+
+  <div class="modal-layer" id="submitRecordModal">
+    <div class="modal">
+      <div class="modal-head"><span>提交记录</span><button class="close" data-close>×</button></div>
+      <div class="modal-body">
+        <article class="ship-record latest">
+          <div class="ship-badge">第2次</div>
+          <div class="dot fail"></div>
+          <div class="ship-main">
+            <div class="ship-row">
+              <strong>2025-11-20 18:49:30</strong>
+              <span>admin</span>
+              <span>关联预览件：<button class="link-btn preview-id" data-jump-preview="PV-20251120-003">PV-20251120-003</button></span>
+              <span class="ship-links"><button class="link-btn">提交截图</button><button class="link-btn">返回图片</button></span>
+            </div>
+            <div class="error-text">提交船司后 VC 未生成，船司返回 UEN 校验失败邮件。</div>
+          </div>
+        </article>
+        <article class="ship-record">
+          <div class="ship-badge">第1次</div>
+          <div class="dot"></div>
+          <div class="ship-main">
+            <div class="ship-row">
+              <strong>2025-11-18 11:08:05</strong>
+              <span>kelly</span>
+              <span>关联预览件：<button class="link-btn preview-id" data-jump-preview="PV-20251118-002">PV-20251118-002</button></span>
+              <span class="ship-links"><button class="link-btn">提交截图</button></span>
+            </div>
+            <div>提交成功，草稿件已返回，VC件未返回。</div>
+          </div>
+        </article>
+      </div>
+      <div class="modal-foot"><button class="btn" data-close>取消</button><button class="btn primary" data-close>确定</button></div>
+    </div>
+  </div>
+
+  <div class="modal-layer" id="mailModal">
+    <div class="modal mail-modal">
+      <div class="modal-head"><span>回复邮件</span><button class="close" data-close>×</button></div>
+      <div class="mail-body">
+        <div class="mail-row"><label>选择回复邮件：</label><select class="mail-select"><option>MBL制单 - MSK - 26358190</option></select></div>
+        <div class="mail-row"><label>发件人：</label><span><input type="radio" checked> 公共账号：speedy_ai_service@oneaix.com</span></div>
+        <div class="mail-row"><label>收件人：</label><div class="chip-box"><span class="chip">doc06@speedy-log.com ×</span><span class="chip">SPEEDY_AI_SERVICE@oneaix.com ×</span></div></div>
+        <div class="mail-row"><label>抄送人：</label><div class="chip-box"><span class="chip">doc06@speedy-log.com ×</span></div></div>
+        <div class="mail-row"><label>回复模板：</label><select class="mail-select"><option>预览件确认</option><option>信息补充确认</option></select></div>
+        <div class="mail-row"><label>邮件主题：</label><input class="mail-input" value="【预览件确认】- MBL制单 - MSK - 26358190"></div>
+        <div class="mail-row"><label>附件：</label><span class="attach" id="mailAttachment">PV-20251120-003_预览件.pdf</span></div>
+        <div class="mail-row" style="align-items:start;"><label>回复内容：</label><div><div class="editor-tools">↶ ↷ ◆ 默认字号 B I U A ≡ ☰ 链接</div><div class="editor">Dear Customer,
+
+附件为本次生成的预览件，请确认附件内容是否有误。
+如内容无误，请直接回复“确认无误”；如有修改，请在回复中注明具体修改内容，我们将同步更新并再次与您确认。
+
+谢谢~</div></div></div>
+      </div>
+      <div class="modal-foot"><button class="btn" data-close>取消</button><button class="btn primary" data-close>确定</button></div>
+    </div>
+  </div>
+
+  <script>
+    const previewData = {
+      "PV-20251112-001": {
+        title: "第1次预览件",
+        badge: "PV-20251112-001",
+        statusClass: "fail",
+        shipper: "BEI JING KANG JIE KONG INTERNATIONAL\nCARGO AGENT CO., LTD.",
+        consignee: "SWAM TET COMPANY LIMITED\nADDRESS 缺失",
+        cargo: "<tr><td>N/M</td><td>-</td><td>生成失败：收货人地址缺少 UEN</td><td>-</td><td>-</td></tr>"
+      },
+      "PV-20251118-002": {
+        title: "第2次预览件",
+        badge: "PV-20251118-002",
+        statusClass: "success",
+        shipper: "BEI JING KANG JIE KONG INTERNATIONAL\nCARGO AGENT CO., LTD.\nWUHAN HUBEI 430023",
+        consignee: "SWAM TET COMPANY LIMITED\nYANGON MYANMAR",
+        cargo: "<tr><td>N/M</td><td>6 BAGS</td><td>SPEAKER</td><td>39286 KGS</td><td>263.5 CBM</td></tr>"
+      },
+      "PV-20251120-003": {
+        title: "第3次预览件",
+        badge: "PV-20251120-003",
+        statusClass: "warning",
+        shipper: "BEI JING KANG JIE KONG INTERNATIONAL\nCARGO AGENT CO., LTD.\nWUHAN HUBEI 430023 PEOPLE'S REPUBLIC OF CHINA",
+        consignee: "SWAM TET COMPANY LIMITED\nADDRESS: NO.(315), TINE TAR MIN GYI STREET\nYANGON MYANMAR",
+        cargo: "<tr><td>N/M</td><td>6 BAGS</td><td>SPEAKER / OUTDOOR DRAINS<br>HS CODE: 732599</td><td>39288.01 KGS</td><td>266.5 CBM</td></tr>"
+      }
+    };
+    const tabs = document.querySelectorAll(".tab");
+    const panes = document.querySelectorAll(".pane");
+    const previewRecords = document.querySelectorAll(".preview-record");
+    const submitRecordModal = document.getElementById("submitRecordModal");
+    const mailModal = document.getElementById("mailModal");
+    function activateTab(name) {
+      tabs.forEach(tab => tab.classList.toggle("active", tab.dataset.tab === name));
+      panes.forEach(pane => pane.classList.toggle("active", pane.dataset.pane === name));
+    }
+    function selectPreview(id) {
+      const data = previewData[id];
+      if (!data) return;
+      previewRecords.forEach(item => item.classList.toggle("active", item.dataset.preview === id));
+      document.getElementById("previewTitle").textContent = data.title;
+      const badge = document.getElementById("previewId");
+      badge.textContent = data.badge;
+      badge.className = "badge " + data.statusClass;
+      document.getElementById("shipperText").textContent = data.shipper;
+      document.getElementById("consigneeText").textContent = data.consignee;
+      document.getElementById("cargoRows").innerHTML = data.cargo;
+      document.getElementById("mailAttachment").textContent = data.badge + "_预览件.pdf";
+    }
+    tabs.forEach(tab => tab.addEventListener("click", () => activateTab(tab.dataset.tab)));
+    previewRecords.forEach(item => item.addEventListener("click", () => selectPreview(item.dataset.preview)));
+    document.querySelectorAll("[data-open-submit-record]").forEach(btn => btn.addEventListener("click", () => submitRecordModal.classList.add("open")));
+    document.querySelectorAll("[data-open-mail]").forEach(btn => btn.addEventListener("click", () => mailModal.classList.add("open")));
+    document.querySelectorAll("[data-close]").forEach(btn => btn.addEventListener("click", () => {
+      submitRecordModal.classList.remove("open");
+      mailModal.classList.remove("open");
+    }));
+    document.querySelectorAll("[data-jump-preview]").forEach(btn => btn.addEventListener("click", () => {
+      const id = btn.dataset.jumpPreview;
+      submitRecordModal.classList.remove("open");
+      activateTab("preview");
+      selectPreview(id);
+      document.querySelector(".preview-record.active").scrollIntoView({ block: "nearest" });
+    }));
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape") {
+        submitRecordModal.classList.remove("open");
+        mailModal.classList.remove("open");
+      }
+    });
+  </script>
+</body>
+</html>
